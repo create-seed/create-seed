@@ -2,43 +2,35 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 const IGNORE_DIRS = new Set(['.git', 'node_modules', '.next', 'dist', '.output', '.nuxt', '.turbo'])
+const BINARY_DETECTION_CHUNK_SIZE = 8000
+const BINARY_DETECTION_SUSPICIOUS_BYTE_THRESHOLD = 0.1
 
-const TEXT_EXTENSIONS = new Set([
-  '.ts',
-  '.tsx',
-  '.js',
-  '.jsx',
-  '.mjs',
-  '.cjs',
-  '.json',
-  '.md',
-  '.mdx',
-  '.yml',
-  '.yaml',
-  '.toml',
-  '.html',
-  '.css',
-  '.scss',
-  '.svg',
-  '.env',
-  '.env.example',
-  '.env.local',
-  '.prettierrc',
-  '.eslintrc',
-])
-
-const EXTENSIONLESS_TEXT_FILES = new Set(['LICENSE', 'Makefile', 'README'])
-
-function isTextFile(filename: string): boolean {
-  // Dotfiles without extension (e.g. .gitignore) are text
-  if (filename.startsWith('.') && !filename.includes('.', 1)) return true
-
-  if (!filename.includes('.')) {
-    return EXTENSIONLESS_TEXT_FILES.has(filename)
+function isLikelyBinary(content: Buffer): boolean {
+  if (content.length === 0) {
+    return false
   }
 
-  const ext = filename.slice(filename.lastIndexOf('.'))
-  return TEXT_EXTENSIONS.has(ext)
+  // To avoid poor performance on very large files, inspect only a prefix.
+  const chunk = content.subarray(0, BINARY_DETECTION_CHUNK_SIZE)
+
+  // Fast path: null bytes are a strong binary signal.
+  if (chunk.includes(0)) {
+    return true
+  }
+
+  // Heuristic: if too many control bytes are present, treat as binary.
+  // Allow common text control chars: tab(9), lf(10), cr(13).
+  let suspiciousByteCount = 0
+  for (const byte of chunk) {
+    const isAllowedControl = byte === 9 || byte === 10 || byte === 13
+    const isControl = byte < 32 && !isAllowedControl
+
+    if (isControl) {
+      suspiciousByteCount += 1
+    }
+  }
+
+  return suspiciousByteCount / chunk.length > BINARY_DETECTION_SUSPICIOUS_BYTE_THRESHOLD
 }
 
 async function walkFiles(dir: string): Promise<string[]> {
@@ -52,7 +44,7 @@ async function walkFiles(dir: string): Promise<string[]> {
       if (dirent.isDirectory()) {
         return walkFiles(fullPath)
       }
-      if (dirent.isFile() && isTextFile(dirent.name)) {
+      if (dirent.isFile()) {
         return [fullPath]
       }
       return []
@@ -83,16 +75,23 @@ export interface RenameResult {
 export async function renameReferences(targetDir: string, oldNames: string[], newName: string): Promise<RenameResult> {
   // Deduplicate and filter out empty/identical names
   const names = [...new Set(oldNames.filter((n) => n && n !== newName))]
-  if (names.length === 0) return { count: 0, files: [] }
+  if (names.length === 0) {
+    return { count: 0, files: [] }
+  }
 
   const patterns = names.map((name) => buildPattern(name))
   const files = await walkFiles(targetDir)
   const renamed: string[] = []
 
   for (const file of files) {
-    const content = await readFile(file, 'utf-8')
+    const rawContent = await readFile(file)
+    if (isLikelyBinary(rawContent)) {
+      continue
+    }
 
+    const content = rawContent.toString('utf-8')
     let updated = content
+
     for (const pattern of patterns) {
       pattern.lastIndex = 0
       updated = updated.replace(pattern, () => newName)
