@@ -1,5 +1,17 @@
 # create-seed
 
+## 1.2.0
+
+### Minor Changes
+
+- 301bdce: Run Biome formatting after dependency installation in scaffolding, so template config imports (like `tsdown.config.ts`) resolve correctly and scaffold output stays clean.
+
+### Patch Changes
+
+- 2540cb3: Harden template registry output generation by sanitizing README metadata, quoting template IDs in generated commands, and tightening repository slug parsing and package metadata handling.
+- 74ef4bb: Rename references now scans all regular files and skips likely binary files, so template names in files like `.mts` are updated correctly.
+- 2540cb3: Refactor registry internals into focused modules for better readability and maintainability, with no behavior change.
+
 ## 1.1.1
 
 ### Patch Changes
