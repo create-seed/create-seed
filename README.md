@@ -98,6 +98,12 @@ DO_NOT_TRACK=1 bun x create-seed@latest my-app -t gh:owner/repo
 
 Analytics are also automatically disabled in CI environments.
 
+## Agent skill
+
+This repo includes an AgentSkill for consistent usage patterns:
+
+- `skills/create-seed/SKILL.md`
+
 ## Development
 
 ```bash
