@@ -62,18 +62,6 @@ export async function createApp({ args, targetDir }: CreateAppOptions): Promise<
     return `Renamed in ${count} file${count === 1 ? '' : 's'} (${originalName} → ${newName})`
   })
 
-  await runStep('Formatting with Biome', async () => {
-    const result = await formatWithBiome(targetDir)
-    switch (result) {
-      case 'formatted':
-        return 'Formatted'
-      case 'skipped':
-        return 'Skipped — no Biome config found'
-      case 'failed':
-        return 'Formatting failed (see warning)'
-    }
-  })
-
   // Git init must happen before install so prepare scripts (e.g. lefthook) can find the repo
   if (!args.skipGit) {
     await runStep('Initializing git repository', async () => {
@@ -88,6 +76,18 @@ export async function createApp({ args, targetDir }: CreateAppOptions): Promise<
       return `Installed with ${pm}`
     })
   }
+
+  await runStep('Formatting with Biome', async () => {
+    const result = await formatWithBiome(targetDir)
+    switch (result) {
+      case 'formatted':
+        return 'Formatted'
+      case 'skipped':
+        return 'Skipped — no Biome config found'
+      case 'failed':
+        return 'Formatting failed (see warning)'
+    }
+  })
 
   if (!args.skipGit) {
     await runStep('Creating initial commit', async () => {
