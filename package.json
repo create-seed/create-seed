@@ -29,6 +29,7 @@
     }
   },
   "files": ["dist"],
+  "homepage": "https://create-seed.xyz",
   "license": "MIT",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
