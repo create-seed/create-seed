@@ -1,5 +1,11 @@
 # create-seed
 
+## 1.3.0
+
+### Minor Changes
+
+- d3616dc: Support the `NO_DNA` convention for non-human operators by enforcing non-interactive behavior when `NO_DNA` is set.
+
 ## 1.2.0
 
 ### Minor Changes
