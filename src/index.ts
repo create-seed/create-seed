@@ -41,7 +41,7 @@ function promptName(): Promise<string> {
 function promptCustomTemplate(): Promise<string> {
   return promptText({
     message: 'Template',
-    placeholder: 'gh:owner/repo/path',
+    placeholder: 'gh:owner/repo/path or https://github.com/owner/repo',
     validate: (v = '') => {
       if (!v.trim()) {
         return 'Template is required'
