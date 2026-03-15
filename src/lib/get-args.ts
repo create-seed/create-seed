@@ -45,7 +45,10 @@ export function getArgs(argv: string[]): Args {
   // Default command (create)
   program
     .argument('[name]', 'Project name')
-    .option('-t, --template <template>', 'Template to use (gh:owner/repo/path or local path)')
+    .option(
+      '-t, --template <template>',
+      'Template to use (gh:owner/repo/path, https://github.com/owner/repo/tree/ref/path, or local path)',
+    )
     .option('--pm <pm>', 'Package manager (npm|pnpm|bun, default: auto-detect)')
     .option('--skip-git', 'Skip git initialization', false)
     .option('--skip-install', 'Skip installing dependencies', false)

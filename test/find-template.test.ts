@@ -17,6 +17,34 @@ afterAll(() => {
 })
 
 describe('findTemplate', () => {
+  test('normalizes GitHub repo URLs', async () => {
+    expect(await findTemplate('https://github.com/create-seed/templates')).toEqual({
+      id: 'gh:create-seed/templates',
+      mode: 'external',
+    })
+  })
+
+  test('normalizes GitHub repo URLs with trailing slashes', async () => {
+    expect(await findTemplate('https://github.com/create-seed/templates/')).toEqual({
+      id: 'gh:create-seed/templates',
+      mode: 'external',
+    })
+  })
+
+  test('normalizes GitHub tree URLs with nested paths', async () => {
+    expect(await findTemplate('https://github.com/create-seed/templates/tree/main/bun-library')).toEqual({
+      id: 'gh:create-seed/templates/bun-library#main',
+      mode: 'external',
+    })
+  })
+
+  test('normalizes GitHub tree URLs without nested paths', async () => {
+    expect(await findTemplate('https://github.com/create-seed/templates/tree/main')).toEqual({
+      id: 'gh:create-seed/templates#main',
+      mode: 'external',
+    })
+  })
+
   test('treats paths starting with ./ as local', async () => {
     expect(await findTemplate('./my-template')).toEqual({ id: './my-template', mode: 'local' })
   })
@@ -63,7 +91,13 @@ describe('findTemplate', () => {
     })
   })
 
+  test('throws for unsupported GitHub URL shapes', async () => {
+    await expect(findTemplate('https://github.com/create-seed/templates/blob/main/README.md')).rejects.toThrow(
+      'Unsupported GitHub template URL',
+    )
+  })
+
   test('throws for unknown short name', async () => {
-    expect(findTemplate('nonexistent-template')).rejects.toThrow('Unknown template')
+    await expect(findTemplate('nonexistent-template')).rejects.toThrow('Unknown template')
   })
 })

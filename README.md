@@ -27,7 +27,7 @@ Arguments:
 
 Options:
   -V, --version                output the version number
-  -t, --template <template>    Template to use (gh:owner/repo/path or local path)
+  -t, --template <template>    Template to use (gh:owner/repo/path, https://github.com/owner/repo/tree/ref/path, or local path)
   --pm <pm>                    Package manager (npm|pnpm|bun, default: auto-detect)
   --skip-git                   Skip git initialization (default: false)
   --skip-install               Skip installing dependencies (default: false)
@@ -40,7 +40,7 @@ Options:
 
 Browse available templates at [create-seed/templates](https://github.com/create-seed/templates).
 
-You can also use any GitHub repo, subdirectory, or local path as a template:
+You can also use any GitHub repo, GitHub web URL, subdirectory, or local path as a template:
 
 ```bash
 # Short name (from the default registry)
@@ -49,11 +49,17 @@ bun x create-seed@latest my-app -t bun-library
 # GitHub repo
 bun x create-seed@latest my-app -t gh:owner/repo
 
+# GitHub repo URL
+bun x create-seed@latest my-app -t https://github.com/owner/repo
+
 # GitHub subdirectory
 bun x create-seed@latest my-app -t gh:owner/repo/path
 
 # GitHub branch
 bun x create-seed@latest my-app -t gh:owner/repo#my-branch
+
+# GitHub tree URL
+bun x create-seed@latest my-app -t https://github.com/owner/repo/tree/my-branch/path
 
 # GitHub subdirectory on a specific branch
 bun x create-seed@latest my-app -t gh:owner/repo/path#my-branch
@@ -61,6 +67,8 @@ bun x create-seed@latest my-app -t gh:owner/repo/path#my-branch
 # Local path
 bun x create-seed@latest my-app -t ./my-local-template
 ```
+
+GitHub tree URLs treat the first segment after `/tree/` as the ref. If your branch or tag name contains `/`, use `gh:owner/repo/path#ref/with/slash` instead.
 
 ## What it does
 
