@@ -1,5 +1,11 @@
 # create-seed
 
+## 1.3.1
+
+### Patch Changes
+
+- a4c913f: Support canonical `https://github.com/...` template URLs by normalizing repo and tree URLs to the existing `gh:` template format before cloning.
+
 ## 1.3.0
 
 ### Minor Changes
