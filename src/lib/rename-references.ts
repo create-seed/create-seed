@@ -79,19 +79,69 @@ function buildPattern(name: string): RegExp {
   return new RegExp(`${prefix}${escaped}${suffix}`, 'g')
 }
 
+function getNameTokens(name: string): string[] {
+  return name.match(/[a-z0-9]+/gi)?.map((token) => token.toLowerCase()) ?? []
+}
+
+function toTitleCase(tokens: string[]): string | undefined {
+  if (tokens.length === 0) {
+    return undefined
+  }
+
+  return tokens.map((token) => token.charAt(0).toUpperCase() + token.slice(1)).join(' ')
+}
+
+function toConcatenatedLowercase(tokens: string[]): string | undefined {
+  if (tokens.length === 0) {
+    return undefined
+  }
+
+  return tokens.join('')
+}
+
+function buildReplacementPairs(oldNames: string[], newName: string): Array<[from: string, to: string]> {
+  const pairs = new Map<string, string>()
+  const newTokens = getNameTokens(newName)
+  const titleNewName = toTitleCase(newTokens)
+  const concatenatedNewName = toConcatenatedLowercase(newTokens)
+
+  for (const oldName of oldNames) {
+    if (!oldName || oldName === newName) {
+      continue
+    }
+
+    pairs.set(oldName, newName)
+
+    const oldTokens = getNameTokens(oldName)
+    const titleOldName = toTitleCase(oldTokens)
+    if (titleOldName && titleNewName && titleOldName !== titleNewName) {
+      pairs.set(titleOldName, titleNewName)
+    }
+
+    const concatenatedOldName = toConcatenatedLowercase(oldTokens)
+    if (concatenatedOldName && concatenatedNewName && concatenatedOldName !== concatenatedNewName) {
+      pairs.set(concatenatedOldName, concatenatedNewName)
+    }
+  }
+
+  return [...pairs.entries()].sort((a, b) => b[0].length - a[0].length)
+}
+
 export interface RenameResult {
   count: number
   files: string[]
 }
 
 export async function renameReferences(targetDir: string, oldNames: string[], newName: string): Promise<RenameResult> {
-  // Deduplicate and filter out empty/identical names
-  const names = [...new Set(oldNames.filter((n) => n && n !== newName))]
-  if (names.length === 0) {
+  const replacements = buildReplacementPairs(oldNames, newName)
+  if (replacements.length === 0) {
     return { count: 0, files: [] }
   }
 
-  const patterns = names.map((name) => buildPattern(name))
+  const patterns = replacements.map(([from, to]) => ({
+    pattern: buildPattern(from),
+    replacement: to,
+  }))
   const files = await walkFiles(targetDir)
   const renamed: string[] = []
 
@@ -104,9 +154,9 @@ export async function renameReferences(targetDir: string, oldNames: string[], ne
     const content = await readFile(file, 'utf-8')
     let updated = content
 
-    for (const pattern of patterns) {
+    for (const { pattern, replacement } of patterns) {
       pattern.lastIndex = 0
-      updated = updated.replace(pattern, () => newName)
+      updated = updated.replace(pattern, () => replacement)
     }
 
     if (updated !== content) {

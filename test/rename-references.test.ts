@@ -24,6 +24,37 @@ describe('renameReferences', () => {
     expect(readFileSync(filePath, 'utf-8')).toContain('beadhub-playground')
   })
 
+  test('renames common name variants', async () => {
+    mkdirSync(tmpDir, { recursive: true })
+    const filePath = join(tmpDir, 'README.md')
+    writeFileSync(filePath, ['# Bun Monorepo', '', 'Package: bun-monorepo', 'Identifier: bunmonorepo'].join('\n'))
+
+    const result = await renameReferences(tmpDir, ['bun-monorepo'], 'beadhub-playground')
+
+    expect(result.count).toBe(1)
+    expect(result.files).toEqual([filePath])
+    expect(readFileSync(filePath, 'utf-8')).toBe(
+      ['# Beadhub Playground', '', 'Package: beadhub-playground', 'Identifier: beadhubplayground'].join('\n'),
+    )
+  })
+
+  test('does not rename inside larger words', async () => {
+    mkdirSync(tmpDir, { recursive: true })
+    const filePath = join(tmpDir, 'notes.txt')
+    writeFileSync(
+      filePath,
+      ['prefixbunmonoreposuffix', 'prefix Bun Monorepo suffix', 'prefix bun-monorepo suffix'].join('\n'),
+    )
+
+    const result = await renameReferences(tmpDir, ['bun-monorepo'], 'beadhub-playground')
+
+    expect(result.count).toBe(1)
+    expect(result.files).toEqual([filePath])
+    expect(readFileSync(filePath, 'utf-8')).toBe(
+      ['prefixbunmonoreposuffix', 'prefix Beadhub Playground suffix', 'prefix beadhub-playground suffix'].join('\n'),
+    )
+  })
+
   test('skips binary files with null bytes', async () => {
     mkdirSync(tmpDir, { recursive: true })
     const filePath = join(tmpDir, 'logo.png')
