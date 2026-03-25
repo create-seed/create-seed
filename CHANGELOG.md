@@ -1,5 +1,11 @@
 # create-seed
 
+## 1.3.2
+
+### Patch Changes
+
+- 4477824: Support renaming additional template name casing variants, including snake_case, camelCase, PascalCase, and SCREAMING_SNAKE_CASE.
+
 ## 1.3.1
 
 ### Patch Changes
