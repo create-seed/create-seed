@@ -38,6 +38,59 @@ describe('renameReferences', () => {
     )
   })
 
+  test('renames snake_case variants in json files', async () => {
+    mkdirSync(tmpDir, { recursive: true })
+    const filePath = join(tmpDir, 'app.json')
+    writeFileSync(filePath, JSON.stringify({ androidPackage: 'com.anonymous.kit_expo_minimal' }, null, 2))
+
+    const result = await renameReferences(tmpDir, ['kit-expo-minimal'], 'some-new-app')
+
+    expect(result.count).toBe(1)
+    expect(result.files).toEqual([filePath])
+    expect(readFileSync(filePath, 'utf-8')).toBe(
+      JSON.stringify({ androidPackage: 'com.anonymous.some_new_app' }, null, 2),
+    )
+  })
+
+  test('renames camelCase and PascalCase variants', async () => {
+    mkdirSync(tmpDir, { recursive: true })
+    const filePath = join(tmpDir, 'App.tsx')
+    writeFileSync(
+      filePath,
+      [
+        'const kitExpoMinimal = createApp("kitExpoMinimal")',
+        'export function KitExpoMinimal() {',
+        '  return <KitExpoMinimal />',
+        '}',
+      ].join('\n'),
+    )
+
+    const result = await renameReferences(tmpDir, ['kit-expo-minimal'], 'some-new-app')
+
+    expect(result.count).toBe(1)
+    expect(result.files).toEqual([filePath])
+    expect(readFileSync(filePath, 'utf-8')).toBe(
+      [
+        'const someNewApp = createApp("someNewApp")',
+        'export function SomeNewApp() {',
+        '  return <SomeNewApp />',
+        '}',
+      ].join('\n'),
+    )
+  })
+
+  test('renames SCREAMING_SNAKE_CASE variants', async () => {
+    mkdirSync(tmpDir, { recursive: true })
+    const filePath = join(tmpDir, '.env.example')
+    writeFileSync(filePath, 'KIT_EXPO_MINIMAL=kit-expo-minimal\n')
+
+    const result = await renameReferences(tmpDir, ['kit-expo-minimal'], 'some-new-app')
+
+    expect(result.count).toBe(1)
+    expect(result.files).toEqual([filePath])
+    expect(readFileSync(filePath, 'utf-8')).toBe('SOME_NEW_APP=some-new-app\n')
+  })
+
   test('does not rename inside larger words', async () => {
     mkdirSync(tmpDir, { recursive: true })
     const filePath = join(tmpDir, 'notes.txt')

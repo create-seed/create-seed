@@ -79,8 +79,20 @@ function buildPattern(name: string): RegExp {
   return new RegExp(`${prefix}${escaped}${suffix}`, 'g')
 }
 
+function normalizeNameForTokenization(name: string): string {
+  return name.replace(/([A-Z]+)([A-Z][a-z0-9])/g, '$1 $2').replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+}
+
 function getNameTokens(name: string): string[] {
-  return name.match(/[a-z0-9]+/gi)?.map((token) => token.toLowerCase()) ?? []
+  return (
+    normalizeNameForTokenization(name)
+      .match(/[a-z0-9]+/gi)
+      ?.map((token) => token.toLowerCase()) ?? []
+  )
+}
+
+function capitalize(token: string): string {
+  return token.charAt(0).toUpperCase() + token.slice(1)
 }
 
 function toTitleCase(tokens: string[]): string | undefined {
@@ -88,7 +100,7 @@ function toTitleCase(tokens: string[]): string | undefined {
     return undefined
   }
 
-  return tokens.map((token) => token.charAt(0).toUpperCase() + token.slice(1)).join(' ')
+  return tokens.map(capitalize).join(' ')
 }
 
 function toConcatenatedLowercase(tokens: string[]): string | undefined {
@@ -99,11 +111,49 @@ function toConcatenatedLowercase(tokens: string[]): string | undefined {
   return tokens.join('')
 }
 
+function toSnakeCase(tokens: string[]): string | undefined {
+  if (tokens.length === 0) {
+    return undefined
+  }
+
+  return tokens.join('_')
+}
+
+function toCamelCase(tokens: string[]): string | undefined {
+  if (tokens.length === 0) {
+    return undefined
+  }
+
+  return tokens[0] + tokens.slice(1).map(capitalize).join('')
+}
+
+function toPascalCase(tokens: string[]): string | undefined {
+  if (tokens.length === 0) {
+    return undefined
+  }
+
+  return tokens.map(capitalize).join('')
+}
+
+function toScreamingSnakeCase(tokens: string[]): string | undefined {
+  if (tokens.length === 0) {
+    return undefined
+  }
+
+  return tokens.map((token) => token.toUpperCase()).join('_')
+}
+
 function buildReplacementPairs(oldNames: string[], newName: string): Array<[from: string, to: string]> {
   const pairs = new Map<string, string>()
   const newTokens = getNameTokens(newName)
-  const titleNewName = toTitleCase(newTokens)
-  const concatenatedNewName = toConcatenatedLowercase(newTokens)
+  const caseConverters = [
+    { convert: toTitleCase, newValue: toTitleCase(newTokens) },
+    { convert: toConcatenatedLowercase, newValue: toConcatenatedLowercase(newTokens) },
+    { convert: toSnakeCase, newValue: toSnakeCase(newTokens) },
+    { convert: toCamelCase, newValue: toCamelCase(newTokens) },
+    { convert: toPascalCase, newValue: toPascalCase(newTokens) },
+    { convert: toScreamingSnakeCase, newValue: toScreamingSnakeCase(newTokens) },
+  ]
 
   for (const oldName of oldNames) {
     if (!oldName || oldName === newName) {
@@ -113,14 +163,12 @@ function buildReplacementPairs(oldNames: string[], newName: string): Array<[from
     pairs.set(oldName, newName)
 
     const oldTokens = getNameTokens(oldName)
-    const titleOldName = toTitleCase(oldTokens)
-    if (titleOldName && titleNewName && titleOldName !== titleNewName) {
-      pairs.set(titleOldName, titleNewName)
-    }
 
-    const concatenatedOldName = toConcatenatedLowercase(oldTokens)
-    if (concatenatedOldName && concatenatedNewName && concatenatedOldName !== concatenatedNewName) {
-      pairs.set(concatenatedOldName, concatenatedNewName)
+    for (const { convert, newValue } of caseConverters) {
+      const oldValue = convert(oldTokens)
+      if (oldValue && newValue && oldValue !== newValue) {
+        pairs.set(oldValue, newValue)
+      }
     }
   }
 
