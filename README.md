@@ -73,8 +73,11 @@ GitHub tree URLs treat the first segment after `/tree/` as the ref. If your bran
 ## What it does
 
 1. **Clones the template** — downloads from GitHub (via [giget](https://github.com/unjs/giget)) or copies from a local path
-2. **Installs dependencies** — auto-detects your package manager (bun/npm/pnpm)
-3. **Initializes git** — `git init` + initial commit (skips gracefully if git is not installed or not configured)
+2. **Configures the package** — rewrites `package.json` and renames in-template references to your new app name
+3. **Initializes git** — runs `git init` before install so prepare scripts can see the repo (skips gracefully if git is not installed)
+4. **Installs dependencies** — auto-detects your package manager (bun/npm/pnpm)
+5. **Runs one post-generation fix script** — first match wins from `create-seed:fix`, `lint:fix`, then `format` (skipped if install was skipped or no matching script exists)
+6. **Creates the initial commit** — if git is enabled and available
 
 ## Package manager detection
 
