@@ -1,8 +1,9 @@
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 import * as p from '@clack/prompts'
 import { createApp } from './lib/create-app.ts'
 import { detectPm } from './lib/detect-pm.ts'
+import { buildFinalNote } from './lib/final-note.ts'
 import { getAppInfo } from './lib/get-app-info.ts'
 import { getArgs } from './lib/get-args.ts'
 import { getTemplates, type Template } from './lib/get-templates.ts'
@@ -264,8 +265,10 @@ export async function main(argv: string[]): Promise<void> {
     version,
   }
 
+  let createAppResult: Awaited<ReturnType<typeof createApp>> | undefined
+
   try {
-    await createApp({ args: { ...args, name: projectName, template }, targetDir })
+    createAppResult = await createApp({ args: { ...args, name: projectName, template }, targetDir })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     await trackEvent({ data: { ...telemetryData, error: message }, event: 'create-failed' })
@@ -278,25 +281,17 @@ export async function main(argv: string[]): Promise<void> {
 
   await trackEvent({ data: telemetryData, event: 'create' })
 
-  const pm = detectPm(args.pm)
-  const steps = [`cd ${projectName}`]
-
-  // Suggest a run command based on what scripts the template actually has
-  const pkgPath = resolve(targetDir, 'package.json')
-  if (existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-      const scripts = Object.keys(pkg.scripts ?? {})
-      const runScript = ['dev', 'start', 'build'].find((s) => scripts.includes(s))
-      if (runScript) {
-        steps.push(`${pm} run ${runScript}`)
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  p.note(steps.join('\n'), 'Next steps')
+  p.note(
+    buildFinalNote({
+      instructions: createAppResult?.instructions,
+      packageManager: detectPm(args.pm, targetDir),
+      projectName,
+      skipGit: args.skipGit,
+      skipInstall: args.skipInstall,
+      targetDir,
+    }),
+    'Next steps',
+  )
 
   p.outro('Done! 🌱')
 }

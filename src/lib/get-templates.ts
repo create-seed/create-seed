@@ -6,6 +6,7 @@ const DEFAULT_TEMPLATES_URL = 'https://raw.githubusercontent.com/create-seed/tem
 export interface Template {
   description: string
   id: string
+  instructions?: string[]
   name: string
 }
 
