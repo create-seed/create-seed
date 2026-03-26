@@ -15,6 +15,10 @@ export interface CreateAppOptions {
   targetDir: string
 }
 
+export interface CreateAppResult {
+  instructions: string[] | undefined
+}
+
 async function runStep(title: string, fn: () => Promise<string>): Promise<void> {
   const s = p.spinner()
   s.start(title)
@@ -28,8 +32,9 @@ async function runStep(title: string, fn: () => Promise<string>): Promise<void> 
   }
 }
 
-export async function createApp({ args, targetDir }: CreateAppOptions): Promise<void> {
+export async function createApp({ args, targetDir }: CreateAppOptions): Promise<CreateAppResult> {
   let template: Awaited<ReturnType<typeof findTemplate>>
+  let instructions: string[] | undefined
 
   await runStep('Resolving template', async () => {
     template = await findTemplate(args.template)
@@ -46,6 +51,7 @@ export async function createApp({ args, targetDir }: CreateAppOptions): Promise<
 
   await runStep('Rewriting package.json', async () => {
     const result = await rewritePackageJson(targetDir, args.name)
+    instructions = result.instructions
     originalName = result.originalName
     newName = result.newName
     return 'Package configured'
@@ -105,4 +111,6 @@ export async function createApp({ args, targetDir }: CreateAppOptions): Promise<
       return result === 'skipped' ? 'Skipped — git not found' : 'Initial commit created'
     })
   }
+
+  return { instructions }
 }

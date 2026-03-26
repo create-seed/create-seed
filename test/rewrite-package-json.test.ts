@@ -48,6 +48,9 @@ describe('rewritePackageJson', () => {
   test('clears template-specific fields', async () => {
     setup({
       bugs: 'https://github.com/example/repo/issues',
+      'create-seed': {
+        instructions: ['Run {pm} run dev'],
+      },
       description: 'A template',
       homepage: 'https://example.com',
       name: 'template-name',
@@ -59,6 +62,22 @@ describe('rewritePackageJson', () => {
     expect(pkg.repository).toBeUndefined()
     expect(pkg.homepage).toBeUndefined()
     expect(pkg.bugs).toBeUndefined()
+    expect(pkg['create-seed']).toBeUndefined()
     expect(pkg.description).toBe('')
+  })
+
+  test('returns create-seed instructions before removing scaffolding metadata', async () => {
+    setup({
+      'create-seed': {
+        instructions: ['Use {pm} run ios', '+{pm} run android'],
+      },
+      name: 'template-name',
+      version: '1.0.0',
+    })
+
+    const result = await rewritePackageJson(tmpDir, 'my-app')
+
+    expect(result.instructions).toEqual(['Use {pm} run ios', '+{pm} run android'])
+    expect(readPkg()['create-seed']).toBeUndefined()
   })
 })

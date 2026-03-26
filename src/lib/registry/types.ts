@@ -1,6 +1,7 @@
 export interface RegistryTemplate {
   description: string
   id: string
+  instructions?: string[]
   name: string
   path: string
 }

@@ -92,6 +92,18 @@ describe('scanTemplates', () => {
     const templates = scanTemplates(root)
     expect(templates.map((t) => t.name)).toEqual(['alpha', 'mid', 'zeta'])
   })
+
+  test('reads create-seed instructions from package.json', () => {
+    createTemplate('mobile', {
+      'create-seed': {
+        instructions: ['Use {pm} run ios', '+{pm} run android'],
+      },
+      name: 'mobile',
+    })
+
+    const templates = scanTemplates(root)
+    expect(templates[0]?.instructions).toEqual(['Use {pm} run ios', '+{pm} run android'])
+  })
 })
 
 describe('generateRegistry', () => {
@@ -104,6 +116,18 @@ describe('generateRegistry', () => {
     expect(registry.templates[0]?.name).toBe('lib')
     expect(registry.templates[0]?.path).toBe('lib')
     expect(registry.templates[0]?.id).toBeDefined()
+  })
+
+  test('copies instructions into generated registry metadata', () => {
+    createTemplate('mobile', {
+      'create-seed': {
+        instructions: ['Use {pm} run ios', '+{pm} run android'],
+      },
+      name: 'mobile',
+    })
+
+    const registry = generateRegistry(root)
+    expect(registry.templates[0]?.instructions).toEqual(['Use {pm} run ios', '+{pm} run android'])
   })
 
   test('builds correct id from repository.name', () => {
@@ -240,6 +264,65 @@ describe('validateRegistry', () => {
 
     const errors = validateRegistry(root)
     expect(errors.some((e) => e.type === 'warning' && e.message.includes('missing description'))).toBe(true)
+  })
+
+  test('errors when registry instructions are not an array of strings', () => {
+    createTemplate('mobile', { name: 'mobile' })
+    writeFileSync(
+      join(root, 'templates.json'),
+      JSON.stringify({
+        templates: [
+          { description: 'Mobile', id: 'gh:test/mobile', instructions: ['ok', 1], name: 'mobile', path: 'mobile' },
+        ],
+      }),
+    )
+
+    const errors = validateRegistry(root)
+    expect(errors.some((e) => e.type === 'error' && e.message.includes('invalid instructions'))).toBe(true)
+  })
+
+  test('errors when package.json create-seed instructions are invalid', () => {
+    createTemplate('mobile', {
+      'create-seed': {
+        instructions: [1, 'ok'],
+      },
+      name: 'mobile',
+    })
+    writeFileSync(
+      join(root, 'templates.json'),
+      JSON.stringify({ templates: [{ description: 'Mobile', id: 'gh:test/mobile', name: 'mobile', path: 'mobile' }] }),
+    )
+
+    const errors = validateRegistry(root)
+    expect(errors.some((e) => e.type === 'error' && e.message.includes('invalid create-seed.instructions'))).toBe(true)
+  })
+
+  test('warns when registry instructions are stale', () => {
+    createTemplate('mobile', {
+      'create-seed': {
+        instructions: ['+bun run android'],
+      },
+      name: 'mobile',
+    })
+    writeFileSync(
+      join(root, 'templates.json'),
+      JSON.stringify({
+        templates: [
+          {
+            description: 'Mobile',
+            id: 'gh:test/mobile',
+            instructions: ['+bun run ios'],
+            name: 'mobile',
+            path: 'mobile',
+          },
+        ],
+      }),
+    )
+
+    const errors = validateRegistry(root)
+    expect(
+      errors.some((e) => e.type === 'warning' && e.message.includes('instructions for "mobile" are out of date')),
+    ).toBe(true)
   })
 
   test('errors on orphaned templates', () => {

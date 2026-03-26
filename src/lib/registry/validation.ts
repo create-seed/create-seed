@@ -1,9 +1,27 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { isStringArray, parsePackageCreateSeedInstructions } from '../create-seed-config.ts'
+import { readPackageJson } from '../package-json.ts'
 import { REGISTRY_FILENAME } from './constants.ts'
 import { generateReadme } from './readme.ts'
 import { scanTemplates } from './templates.ts'
 import type { Registry, ValidationError } from './types.ts'
+
+function instructionsMatch(left: string[] | undefined, right: string[] | undefined): boolean {
+  if (!left && !right) {
+    return true
+  }
+
+  if (!left || !right) {
+    return false
+  }
+
+  if (left.length !== right.length) {
+    return false
+  }
+
+  return left.every((value, index) => value === right[index])
+}
 
 export function validateRegistry(root: string): ValidationError[] {
   const errors: ValidationError[] = []
@@ -39,6 +57,12 @@ export function validateRegistry(root: string): ValidationError[] {
     if (!template.id) {
       errors.push({ message: `Template "${template.name}" missing required field: id`, type: 'error' })
     }
+    if (template.instructions !== undefined && !isStringArray(template.instructions)) {
+      errors.push({
+        message: `Template "${template.name}" has invalid instructions in ${REGISTRY_FILENAME}; expected an array of strings`,
+        type: 'error',
+      })
+    }
     if (!template.description) {
       errors.push({ message: `Template "${template.name}" missing description`, type: 'warning' })
     }
@@ -50,6 +74,24 @@ export function validateRegistry(root: string): ValidationError[] {
         message: `Template "${template.name}" has no package.json in: ${template.path}`,
         type: 'error',
       })
+    } else {
+      const pkg = readPackageJson(join(dir, 'package.json'))
+      if (pkg) {
+        const actualInstructions = parsePackageCreateSeedInstructions(pkg)
+        if (!actualInstructions.valid) {
+          errors.push({
+            message: `Template "${template.name}" has invalid create-seed.instructions in package.json; expected an array of strings`,
+            type: 'error',
+          })
+        } else {
+          if (!instructionsMatch(template.instructions, actualInstructions.instructions)) {
+            errors.push({
+              message: `${REGISTRY_FILENAME} instructions for "${template.name}" are out of date — run \`create-seed registry generate\` to update`,
+              type: 'warning',
+            })
+          }
+        }
+      }
     }
   }
 
