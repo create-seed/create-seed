@@ -1,5 +1,11 @@
 # create-seed
 
+## 1.4.0
+
+### Minor Changes
+
+- 107f75a: Support template-defined final instructions in scaffold output, including custom next steps, skipped install and git guidance, and mirrored instruction metadata in the template registry.
+
 ## 1.3.3
 
 ### Patch Changes
