@@ -1,13 +1,14 @@
 import { relative } from 'node:path'
 import * as p from '@clack/prompts'
 import { cloneTemplate } from './clone-template.ts'
+import type { PackageManager } from './detect-pm.ts'
 import { findTemplate } from './find-template.ts'
-import { formatWithBiome } from './format-with-biome.ts'
 import type { ResolvedArgs } from './get-args.ts'
 import { commitGitRepo, initGitRepo } from './init-git.ts'
 import { installDeps } from './install-deps.ts'
 import { renameReferences } from './rename-references.ts'
 import { rewritePackageJson } from './rewrite-package-json.ts'
+import { runPostGenerationFix } from './run-post-generation-fix.ts'
 
 export interface CreateAppOptions {
   args: ResolvedArgs
@@ -70,22 +71,31 @@ export async function createApp({ args, targetDir }: CreateAppOptions): Promise<
     })
   }
 
+  let selectedPm: PackageManager | undefined
+
   if (!args.skipInstall) {
     await runStep('Installing dependencies', async () => {
-      const pm = await installDeps(targetDir, args.pm)
-      return `Installed with ${pm}`
+      selectedPm = await installDeps(targetDir, args.pm)
+      return `Installed with ${selectedPm}`
     })
   }
 
-  await runStep('Formatting with Biome', async () => {
-    const result = await formatWithBiome(targetDir)
-    switch (result) {
-      case 'formatted':
-        return 'Formatted'
-      case 'skipped':
-        return 'Skipped — no Biome config found'
+  await runStep('Running post-generation fix script', async () => {
+    const result = await runPostGenerationFix(targetDir, selectedPm, { installSkipped: args.skipInstall })
+    switch (result.status) {
+      case 'ran':
+        return `Ran \`${result.script}\``
       case 'failed':
-        return 'Formatting failed (see warning)'
+        return `\`${result.script}\` failed (see warning)`
+      case 'skipped':
+        switch (result.reason) {
+          case 'install-skipped':
+            return 'Skipped — install was skipped'
+          case 'package-json-missing':
+            return 'Skipped — package.json not found or invalid'
+          case 'script-missing':
+            return 'Skipped — no matching fix script found'
+        }
     }
   })
 
