@@ -30,7 +30,7 @@ export function selectPostGenerationFixScript(pkg: PackageJsonLike): PostGenerat
 export async function runPostGenerationFix(
   targetDir: string,
   pm: PackageManager | undefined,
-  options: { installSkipped?: boolean; exec?: ExecFn } = {},
+  options: { exec?: ExecFn; installSkipped?: boolean; verbose?: boolean } = {},
 ): Promise<PostGenerationFixResult> {
   if (options.installSkipped || !pm) {
     return { reason: 'install-skipped', status: 'skipped' }
@@ -55,7 +55,7 @@ export async function runPostGenerationFix(
   }
 
   try {
-    await (options.exec ?? execAsync)(pm, ['run', script], { cwd: targetDir })
+    await (options.exec ?? execAsync)(pm, ['run', script], { cwd: targetDir, streamOutput: options.verbose })
     return { script, status: 'ran' }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

@@ -82,13 +82,16 @@ export async function createApp({ args, targetDir }: CreateAppOptions): Promise<
 
   if (!args.skipInstall) {
     await runStep('Installing dependencies', async () => {
-      selectedPm = await installDeps(targetDir, args.pm)
+      selectedPm = await installDeps(targetDir, args.pm, { verbose: args.verbose })
       return `Installed with ${selectedPm}`
     })
   }
 
   await runStep('Running post-generation setup script', async () => {
-    const result = await runPostGenerationSetup(targetDir, selectedPm, { installSkipped: args.skipInstall })
+    const result = await runPostGenerationSetup(targetDir, selectedPm, {
+      installSkipped: args.skipInstall,
+      verbose: args.verbose,
+    })
     switch (result.status) {
       case 'ran':
         return `Ran \`${result.script}\``
@@ -107,7 +110,10 @@ export async function createApp({ args, targetDir }: CreateAppOptions): Promise<
   })
 
   await runStep('Running post-generation fix script', async () => {
-    const result = await runPostGenerationFix(targetDir, selectedPm, { installSkipped: args.skipInstall })
+    const result = await runPostGenerationFix(targetDir, selectedPm, {
+      installSkipped: args.skipInstall,
+      verbose: args.verbose,
+    })
     switch (result.status) {
       case 'ran':
         return `Ran \`${result.script}\``
