@@ -76,8 +76,9 @@ GitHub tree URLs treat the first segment after `/tree/` as the ref. If your bran
 2. **Configures the package** — rewrites `package.json` and renames in-template references to your new app name
 3. **Initializes git** — runs `git init` before install so prepare scripts can see the repo (skips gracefully if git is not installed)
 4. **Installs dependencies** — auto-detects your package manager (bun/npm/pnpm)
-5. **Runs one post-generation fix script** — first match wins from `create-seed:fix`, `lint:fix`, then `format` (skipped if install was skipped or no matching script exists)
-6. **Creates the initial commit** — if git is enabled and available
+5. **Runs one post-generation setup script** — first match wins from `create-seed:setup`, then `setup` (skipped if install was skipped or no matching script exists)
+6. **Runs one post-generation fix script** — first match wins from `create-seed:fix`, `lint:fix`, then `format` (skipped if install was skipped or no matching script exists)
+7. **Creates the initial commit** — if git is enabled and available
 
 ## Package manager detection
 

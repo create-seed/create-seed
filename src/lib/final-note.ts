@@ -2,6 +2,7 @@ import { resolve } from 'node:path'
 import pico from 'picocolors'
 import type { PackageManager } from './detect-pm.ts'
 import { isRecord, readPackageJson } from './package-json.ts'
+import { selectPostGenerationSetupScript } from './run-post-generation-setup.ts'
 
 const START_SCRIPTS = ['dev', 'start', 'build'] as const
 
@@ -44,6 +45,7 @@ export function buildFinalNote(args: FinalNoteArgs): string {
   const pkg = readPackageJson(resolve(args.targetDir, 'package.json'))
   const scripts = isRecord(pkg?.scripts) ? pkg.scripts : undefined
   const runScript = findRunScript(scripts)
+  const setupScript = pkg ? selectPostGenerationSetupScript(pkg) : undefined
   const customInstructions = (args.instructions ?? [])
     .map((instruction) => formatInstruction(instruction, args.packageManager))
     .filter((instruction): instruction is string => Boolean(instruction))
@@ -61,6 +63,10 @@ export function buildFinalNote(args: FinalNoteArgs): string {
 
   if (args.skipInstall) {
     sections.push(['Install dependencies:', emphasize(`${args.packageManager} install`)].join('\n'))
+
+    if (setupScript) {
+      sections.push(['Run template setup:', emphasize(`${args.packageManager} run ${setupScript}`)].join('\n'))
+    }
   }
 
   if (customInstructions.length > 0) {
