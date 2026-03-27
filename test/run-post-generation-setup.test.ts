@@ -104,7 +104,22 @@ describe('runPostGenerationSetup', () => {
 
     expect(result).toEqual({ script: 'setup', status: 'ran' })
     expect(exec).toHaveBeenCalledTimes(1)
-    expect(exec).toHaveBeenCalledWith('pnpm', ['run', 'setup'], { cwd: tmpDir })
+    expect(exec).toHaveBeenCalledWith('pnpm', ['run', 'setup'], { cwd: tmpDir, streamOutput: undefined })
+  })
+
+  test('streams script output when verbose is enabled', async () => {
+    setupPackageJson({
+      name: 'my-app',
+      scripts: {
+        setup: 'node setup.mjs',
+      },
+    })
+
+    const exec = mock(async () => {})
+    const result = await runPostGenerationSetup(tmpDir, 'npm', { exec, verbose: true })
+
+    expect(result).toEqual({ script: 'setup', status: 'ran' })
+    expect(exec).toHaveBeenCalledWith('npm', ['run', 'setup'], { cwd: tmpDir, streamOutput: true })
   })
 
   test('returns failed status and warns when the script runner fails', async () => {

@@ -26,7 +26,7 @@ export function selectPostGenerationSetupScript(pkg: Record<string, unknown>): P
 export async function runPostGenerationSetup(
   targetDir: string,
   pm: PackageManager | undefined,
-  options: { exec?: ExecFn; installSkipped?: boolean } = {},
+  options: { exec?: ExecFn; installSkipped?: boolean; verbose?: boolean } = {},
 ): Promise<PostGenerationSetupResult> {
   if (options.installSkipped || !pm) {
     return { reason: 'install-skipped', status: 'skipped' }
@@ -43,7 +43,7 @@ export async function runPostGenerationSetup(
   }
 
   try {
-    await (options.exec ?? execAsync)(pm, ['run', script], { cwd: targetDir })
+    await (options.exec ?? execAsync)(pm, ['run', script], { cwd: targetDir, streamOutput: options.verbose })
     return { script, status: 'ran' }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

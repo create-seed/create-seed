@@ -111,7 +111,22 @@ describe('runPostGenerationFix', () => {
 
     expect(result).toEqual({ script: 'lint:fix', status: 'ran' })
     expect(exec).toHaveBeenCalledTimes(1)
-    expect(exec).toHaveBeenCalledWith('pnpm', ['run', 'lint:fix'], { cwd: tmpDir })
+    expect(exec).toHaveBeenCalledWith('pnpm', ['run', 'lint:fix'], { cwd: tmpDir, streamOutput: undefined })
+  })
+
+  test('streams script output when verbose is enabled', async () => {
+    setupPackageJson({
+      name: 'my-app',
+      scripts: {
+        format: 'prettier --write .',
+      },
+    })
+
+    const exec = mock(async () => {})
+    const result = await runPostGenerationFix(tmpDir, 'npm', { exec, verbose: true })
+
+    expect(result).toEqual({ script: 'format', status: 'ran' })
+    expect(exec).toHaveBeenCalledWith('npm', ['run', 'format'], { cwd: tmpDir, streamOutput: true })
   })
 
   test('returns failed status and warns when the script runner fails', async () => {

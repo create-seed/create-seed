@@ -9,7 +9,13 @@ const LOCKFILES: Record<PackageManager, string> = {
   pnpm: 'pnpm-lock.yaml',
 }
 
-export async function installDeps(targetDir: string, explicitPm?: string): Promise<PackageManager> {
+type ExecFn = typeof execAsync
+
+export async function installDeps(
+  targetDir: string,
+  explicitPm?: string,
+  options: { exec?: ExecFn; verbose?: boolean } = {},
+): Promise<PackageManager> {
   const pm = detectPm(explicitPm, targetDir)
 
   // Delete lockfiles for other package managers
@@ -26,7 +32,12 @@ export async function installDeps(targetDir: string, explicitPm?: string): Promi
   const env = { ...process.env }
   delete env.npm_config_user_agent
 
-  await execAsync(pm, ['install'], { cwd: targetDir, env, shell: true })
+  await (options.exec ?? execAsync)(pm, ['install'], {
+    cwd: targetDir,
+    env,
+    shell: true,
+    streamOutput: options.verbose,
+  })
 
   return pm
 }
