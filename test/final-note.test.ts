@@ -116,4 +116,33 @@ describe('buildFinalNote', () => {
       ].join('\n\n'),
     )
   })
+
+  test('adds the manual setup step after install when install was skipped', () => {
+    const targetDir = setupPackageJson({
+      name: 'template-app',
+      scripts: {
+        'create-seed:setup': 'tsx scripts/setup.ts',
+        dev: 'vite',
+        setup: 'node setup.mjs',
+      },
+    })
+
+    expect(
+      buildFinalNote({
+        instructions: undefined,
+        packageManager: 'pnpm',
+        projectName: 'my-app',
+        skipGit: false,
+        skipInstall: true,
+        targetDir,
+      }),
+    ).toBe(
+      [
+        'cd my-app',
+        ['Install dependencies:', emphasize('pnpm install')].join('\n'),
+        ['Run template setup:', emphasize('pnpm run create-seed:setup')].join('\n'),
+        'pnpm run dev',
+      ].join('\n\n'),
+    )
+  })
 })
