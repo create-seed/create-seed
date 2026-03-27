@@ -163,6 +163,60 @@ describe('main', () => {
     expect(generatedPackageJson['create-seed']).toBeUndefined()
   })
 
+  test('renders extracted spacer instructions in next steps', async () => {
+    process.env.DO_NOT_TRACK = '1'
+    process.env.npm_config_user_agent = 'bun/1.0.0'
+
+    const note = mock(() => {})
+
+    mock.module('@clack/prompts', () => ({
+      cancel: mock(() => {}),
+      confirm: mock(async () => false),
+      intro: mock(() => {}),
+      isCancel: () => false,
+      log: {
+        error: mock(() => {}),
+        message: mock(() => {}),
+        success: mock(() => {}),
+        warn: mock(() => {}),
+      },
+      note,
+      outro: mock(() => {}),
+      select: mock(async () => ''),
+      spinner: () => ({
+        start() {},
+        stop() {},
+      }),
+      text: mock(async () => ''),
+    }))
+
+    const templateDir = setupTemplate({
+      'create-seed': {
+        instructions: ['+{pm} run db:start', '~', 'Your database is now up and running and you can start your app'],
+      },
+    })
+    process.chdir(tmpDir)
+
+    const { main } = await import('../src/index.ts')
+
+    await main(['bun', 'create-seed', 'my-app', '--skip-git', '--skip-install', '--template', templateDir])
+
+    expect(note).toHaveBeenCalledWith(
+      [
+        'cd my-app',
+        [
+          'Initialize git and create the initial commit:',
+          pico.bold(pico.white('git init -b main')),
+          pico.bold(pico.white('git add .')),
+          pico.bold(pico.white('git commit -m "chore: initial commit"')),
+        ].join('\n'),
+        ['Install dependencies:', pico.bold(pico.white('pnpm install'))].join('\n'),
+        `${pico.bold(pico.white('pnpm run db:start'))}\n\nYour database is now up and running and you can start your app`,
+      ].join('\n\n'),
+      'Next steps',
+    )
+  })
+
   test('shows the manual setup step in next steps when install is skipped', async () => {
     process.env.DO_NOT_TRACK = '1'
     process.env.npm_config_user_agent = 'pnpm/10.0.0'

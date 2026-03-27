@@ -4,7 +4,9 @@ import type { PackageManager } from './detect-pm.ts'
 import { isRecord, readPackageJson } from './package-json.ts'
 import { selectPostGenerationSetupScript } from './run-post-generation-setup.ts'
 
+const BLANK_LINE = Symbol('blank-line')
 const START_SCRIPTS = ['dev', 'start', 'build'] as const
+type FormattedInstruction = string | typeof BLANK_LINE
 
 export interface FinalNoteArgs {
   instructions: string[] | undefined
@@ -23,11 +25,15 @@ function findRunScript(scripts: Record<string, unknown> | undefined): string | u
   return START_SCRIPTS.find((script) => typeof scripts?.[script] === 'string')
 }
 
-function formatInstruction(instruction: string, packageManager: PackageManager): string | undefined {
+function formatInstruction(instruction: string, packageManager: PackageManager): FormattedInstruction | undefined {
   const line = instruction.trim()
 
   if (!line) {
     return undefined
+  }
+
+  if (line === '~') {
+    return BLANK_LINE
   }
 
   const formattedLine = line.replaceAll('{pm}', packageManager)
@@ -48,7 +54,8 @@ export function buildFinalNote(args: FinalNoteArgs): string {
   const setupScript = pkg ? selectPostGenerationSetupScript(pkg) : undefined
   const customInstructions = (args.instructions ?? [])
     .map((instruction) => formatInstruction(instruction, args.packageManager))
-    .filter((instruction): instruction is string => Boolean(instruction))
+    .filter((instruction): instruction is FormattedInstruction => instruction !== undefined)
+    .map((instruction) => (instruction === BLANK_LINE ? '' : instruction))
 
   if (args.skipGit) {
     sections.push(
