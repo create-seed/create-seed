@@ -70,6 +70,11 @@ bun x create-seed@latest my-app -t ./my-local-template
 
 GitHub tree URLs treat the first segment after `/tree/` as the ref. If your branch or tag name contains `/`, use `gh:owner/repo/path#ref/with/slash` instead.
 
+Template authors can also add `create-seed.instructions` in `package.json` to customize the final note:
+
+- Prefix a line with `+` to render it in bold
+- Use a standalone `~` line to insert an empty line
+
 ## What it does
 
 1. **Clones the template** — downloads from GitHub (via [giget](https://github.com/unjs/giget)) or copies from a local path

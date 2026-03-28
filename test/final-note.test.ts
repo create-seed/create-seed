@@ -65,6 +65,46 @@ describe('buildFinalNote', () => {
     ).toBe(['cd my-app', `To build the Android app locally, run this:\n${emphasize('bun run android')}`].join('\n\n'))
   })
 
+  test('renders spacer instructions as blank lines', () => {
+    const targetDir = setupPackageJson({
+      name: 'template-app',
+      scripts: {
+        dev: 'vite',
+      },
+    })
+
+    expect(
+      buildFinalNote({
+        instructions: ['first line', '~', 'second line'],
+        packageManager: 'bun',
+        projectName: 'my-app',
+        skipGit: false,
+        skipInstall: false,
+        targetDir,
+      }),
+    ).toBe(['cd my-app', 'first line\n\nsecond line'].join('\n\n'))
+  })
+
+  test('supports mixed spacer, emphasized, and plain custom instructions', () => {
+    const targetDir = setupPackageJson({
+      name: 'template-app',
+      scripts: {
+        dev: 'vite',
+      },
+    })
+
+    expect(
+      buildFinalNote({
+        instructions: ['Open the simulator:', '+{pm} run ios', '~', 'Your app is ready'],
+        packageManager: 'pnpm',
+        projectName: 'my-app',
+        skipGit: false,
+        skipInstall: false,
+        targetDir,
+      }),
+    ).toBe(['cd my-app', `Open the simulator:\n${emphasize('pnpm run ios')}\n\nYour app is ready`].join('\n\n'))
+  })
+
   test('ignores blank custom instructions and falls back when none remain', () => {
     const targetDir = setupPackageJson({
       name: 'template-app',
