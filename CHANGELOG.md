@@ -1,5 +1,16 @@
 # create-seed
 
+## 1.5.0
+
+### Minor Changes
+
+- 0eb5cec: Add a template setup hook to scaffolding. Generated apps now run the first matching script from `create-seed:setup` or `setup` after dependency installation and before the existing fix step, and skipped-install next steps now surface the matching setup command when present.
+
+### Patch Changes
+
+- d710fde: Support `~` as a blank-line marker in template-defined final instructions, so generated next steps can separate related groups of commands without changing the `instructions` schema.
+- a27b647: Show dependency install and post-generation script output when `--verbose` is enabled, while keeping normal scaffold runs quiet by default.
+
 ## 1.4.0
 
 ### Minor Changes
