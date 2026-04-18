@@ -1,5 +1,6 @@
 import { relative } from 'node:path'
 import * as p from '@clack/prompts'
+import { assertTemplateTools } from './assert-template-tools.ts'
 import { cloneTemplate } from './clone-template.ts'
 import type { PackageManager } from './detect-pm.ts'
 import { findTemplate } from './find-template.ts'
@@ -45,6 +46,13 @@ export async function createApp({ args, targetDir }: CreateAppOptions): Promise<
   await runStep('Cloning template', async () => {
     await cloneTemplate(template, targetDir)
     return 'Template cloned'
+  })
+
+  await runStep('Checking template tool requirements', async () => {
+    const result = await assertTemplateTools(targetDir, { allowMissingTools: args.allowMissingTools })
+    return result.ignoredMissingTools.length > 0
+      ? `Ignored missing tool requirement${result.ignoredMissingTools.length === 1 ? '' : 's'}: ${result.ignoredMissingTools.join(', ')}`
+      : 'Template requirements satisfied'
   })
 
   let originalName: string | undefined

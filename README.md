@@ -18,7 +18,7 @@ pnpx create-seed@latest my-app -t bun-library
 ## Options
 
 ```
-Usage: create-seed [options] [name]
+Usage: create-seed [options] [command] [name]
 
 Scaffold a new project from a template
 
@@ -29,11 +29,19 @@ Options:
   -V, --version                output the version number
   -t, --template <template>    Template to use (gh:owner/repo/path, https://github.com/owner/repo/tree/ref/path, or local path)
   --pm <pm>                    Package manager (npm|pnpm|bun, default: auto-detect)
+  --allow-missing-tools        Continue when create-seed.tools commands are not installed (default: false)
   --skip-git                   Skip git initialization (default: false)
   --skip-install               Skip installing dependencies (default: false)
+  -l, --list                   List available templates (default: false)
+  --templates-url <url>        URL or local path to templates.json (default:
+                               "https://raw.githubusercontent.com/create-seed/templates/main/templates.json")
   -d, --dry-run                Dry run (default: false)
   -v, --verbose                Verbose output (default: false)
   -h, --help                   display help for command
+
+Commands:
+  registry                     Manage template registries
+  tools                        Inspect tool versions used by template requirements
 ```
 
 ## Templates
@@ -70,20 +78,88 @@ bun x create-seed@latest my-app -t ./my-local-template
 
 GitHub tree URLs treat the first segment after `/tree/` as the ref. If your branch or tag name contains `/`, use `gh:owner/repo/path#ref/with/slash` instead.
 
-Template authors can also add `create-seed.instructions` in `package.json` to customize the final note:
+Template authors can add `create-seed.instructions` in `package.json` to customize the final note:
 
 - Prefix a line with `+` to render it in bold
 - Use a standalone `~` line to insert an empty line
 
+Templates can also declare external CLI requirements with `create-seed.tools`.
+
+String values are shorthand for "this command must exist and report at least this version":
+
+```json
+{
+  "create-seed": {
+    "tools": {
+      "solana": "3.0.0"
+    }
+  }
+}
+```
+
+If you need more control, each tool can also use an object:
+
+```json
+{
+  "create-seed": {
+    "tools": {
+      "adb": {
+        "args": ["version"],
+        "docsUrl": "https://developer.android.com/tools/adb",
+        "installHint": "Install Android platform-tools.",
+        "minVersion": "37.0.0",
+        "versionPattern": "Version\\s+(\\d+\\.\\d+\\.\\d+)"
+      },
+      "avm": {},
+      "node": {
+        "minVersion": "24.5.0"
+      }
+    }
+  }
+}
+```
+
+Supported object fields:
+
+- `args` — probe arguments; defaults to `["--version"]`
+- `command` — override the executable name; defaults to the tool key
+- `docsUrl` — documentation link appended to the error
+- `installHint` — custom error text shown when the requirement is not met
+- `minVersion` — minimum required `x.y.z` version; omit it for a presence-only check
+- `versionPattern` — valid and safe regular expression with one capture group for the version to compare; requires `minVersion`
+
+If a required tool is missing, below the minimum version, or its configured probe does not return a parseable `x.y.z` version, scaffolding stops before install and tells the user how to fix it. If `minVersion` is omitted, `create-seed` only requires the command to exist and the configured probe command to succeed. `solana` gets a Solana-specific install hint by default; other tools use a generic upgrade message unless you provide `installHint` or `docsUrl`.
+
+If you need to scaffold in an environment that intentionally does not have those tools installed yet, pass `--allow-missing-tools`. That only ignores missing commands; installed-but-too-old tools and other probe failures still stop generation.
+
+If you want to see exactly what `create-seed` would compare for a command before writing template metadata, use the probe command:
+
+```bash
+create-seed tools probe node
+create-seed tools probe adb --min 37.0.0 --pattern 'Version\s+(\d+\.\d+\.\d+)'
+create-seed tools probe avm --presence-only
+```
+
+Probe options:
+
+- `--arg <value>` — add a custom probe argument; repeatable
+- `--json` — print the structured probe result as JSON
+- `--min <version>` — check a minimum version
+- `--pattern <regex>` — use a custom regex with one capture group
+- `--presence-only` — only verify that the command exists and the probe succeeds
+
+The probe prints the raw output, every detected version-like token, the version `create-seed` would compare, whether the minimum passes, and a suggested `tools` config snippet.
+
 ## What it does
 
 1. **Clones the template** — downloads from GitHub (via [giget](https://github.com/unjs/giget)) or copies from a local path
-2. **Configures the package** — rewrites `package.json` and renames in-template references to your new app name
-3. **Initializes git** — runs `git init` before install so prepare scripts can see the repo (skips gracefully if git is not installed)
-4. **Installs dependencies** — auto-detects your package manager (bun/npm/pnpm)
-5. **Runs one post-generation setup script** — first match wins from `create-seed:setup`, then `setup` (skipped if install was skipped or no matching script exists)
-6. **Runs one post-generation fix script** — first match wins from `create-seed:fix`, `lint:fix`, then `format` (skipped if install was skipped or no matching script exists)
-7. **Creates the initial commit** — if git is enabled and available
+2. **Checks required tools** — validates any `create-seed.tools` requirements from the template before making further changes
+3. **Configures the package** — rewrites `package.json` and renames in-template references to your new app name
+4. **Initializes git** — runs `git init` before install so prepare scripts can see the repo (skips gracefully if git is not installed)
+5. **Installs dependencies** — auto-detects your package manager (bun/npm/pnpm)
+6. **Runs one post-generation setup script** — first match wins from `create-seed:setup`, then `setup` (skipped if install was skipped or no matching script exists)
+7. **Runs one post-generation fix script** — first match wins from `create-seed:fix`, `lint:fix`, then `format` (skipped if install was skipped or no matching script exists)
+8. **Creates the initial commit** — if git is enabled and available
 
 ## Package manager detection
 

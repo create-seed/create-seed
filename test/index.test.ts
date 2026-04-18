@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { delimiter, join } from 'node:path'
 import pico from 'picocolors'
 
 describe('main', () => {
   const originalCwd = process.cwd()
   const originalDoNotTrack = process.env.DO_NOT_TRACK
+  const originalPath = process.env.PATH
   const originalUserAgent = process.env.npm_config_user_agent
   const tmpDir = join(import.meta.dirname, 'fixtures', 'tmp-main')
 
@@ -24,6 +25,12 @@ describe('main', () => {
       delete process.env.npm_config_user_agent
     } else {
       process.env.npm_config_user_agent = originalUserAgent
+    }
+
+    if (originalPath === undefined) {
+      delete process.env.PATH
+    } else {
+      process.env.PATH = originalPath
     }
 
     if (existsSync(tmpDir)) {
@@ -272,5 +279,78 @@ describe('main', () => {
       ].join('\n\n'),
       'Next steps',
     )
+  })
+
+  test('renders tool probe output for template authors', async () => {
+    const toolPath = join(tmpDir, 'adb')
+    const note = mock(() => {})
+
+    mock.module('@clack/prompts', () => ({
+      cancel: mock(() => {}),
+      confirm: mock(async () => false),
+      intro: mock(() => {}),
+      isCancel: () => false,
+      log: {
+        error: mock(() => {}),
+        message: mock(() => {}),
+        success: mock(() => {}),
+        warn: mock(() => {}),
+      },
+      note,
+      outro: mock(() => {}),
+      select: mock(async () => ''),
+      spinner: () => ({
+        start() {},
+        stop() {},
+      }),
+      text: mock(async () => ''),
+    }))
+
+    mkdirSync(tmpDir, { recursive: true })
+    writeFileSync(toolPath, "#!/bin/sh\necho 'Android Debug Bridge version 1.0.41'\necho 'Version 37.0.0-14910828'\n")
+    chmodSync(toolPath, 0o755)
+    process.env.PATH = [tmpDir, originalPath].filter(Boolean).join(delimiter)
+
+    const { main } = await import('../src/index.ts')
+
+    await main([
+      'bun',
+      'create-seed',
+      'tools',
+      'probe',
+      'adb',
+      '--min',
+      '37.0.0',
+      '--pattern',
+      'Version\\s+(\\d+\\.\\d+\\.\\d+)',
+    ])
+
+    expect(note).toHaveBeenCalledTimes(1)
+
+    const [message, title] = note.mock.calls[0] as unknown as [string, string]
+    expect(title).toBe('Tool probe')
+    expect(message).toContain('Command: adb --version')
+    expect(message).toContain('Status: ok')
+    expect(message).toContain('Version source: pattern (Version\\s+(\\d+\\.\\d+\\.\\d+))')
+    expect(message).toContain('Detected version-like tokens: 1.0.41, 37.0.0')
+    expect(message).toContain('Parsed version: 37.0.0')
+    expect(message).toContain('Requested minimum: 37.0.0')
+    expect(message).toContain('Satisfies minimum: yes')
+    expect(message).toContain(
+      JSON.stringify(
+        {
+          tools: {
+            adb: {
+              minVersion: '37.0.0',
+              versionPattern: 'Version\\s+(\\d+\\.\\d+\\.\\d+)',
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    )
+    expect(message).toContain('Android Debug Bridge version 1.0.41')
+    expect(message).toContain('Version 37.0.0-14910828')
   })
 })

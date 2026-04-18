@@ -8,6 +8,7 @@ import { getAppInfo } from './lib/get-app-info.ts'
 import { getArgs } from './lib/get-args.ts'
 import { getTemplates, type Template } from './lib/get-templates.ts'
 import { isNoDna } from './lib/is-no-dna.ts'
+import { type ProbeToolOptions, probeTool } from './lib/probe-tool.ts'
 import { generateReadme, generateRegistry, validateRegistry, writeReadme, writeRegistry } from './lib/registry.ts'
 import { trackEvent } from './lib/telemetry.ts'
 
@@ -153,6 +154,95 @@ async function registryValidate(dir: string): Promise<void> {
   p.outro('All checks passed')
 }
 
+function formatProbeCommand(command: string, args: string[]): string {
+  return [command, ...args].join(' ')
+}
+
+function formatProbeResult(
+  tool: string,
+  options: ProbeToolOptions,
+  result: Awaited<ReturnType<typeof probeTool>>,
+): string {
+  const lines = [
+    `Command: ${formatProbeCommand(tool, result.args)}`,
+    `Status: ${result.status}`,
+    `Version source: ${result.versionSource}${result.versionPattern ? ` (${result.versionPattern})` : ''}`,
+    `Detected version-like tokens: ${result.detectedVersions.length > 0 ? result.detectedVersions.join(', ') : '(none)'}`,
+    `Parsed version: ${result.version ?? '(none)'}`,
+  ]
+
+  if (options.presenceOnly) {
+    lines.push('Presence only: yes')
+  }
+
+  if (options.minVersion) {
+    lines.push(`Requested minimum: ${options.minVersion}`)
+    lines.push(
+      `Satisfies minimum: ${result.satisfiesMinVersion === undefined ? 'unknown' : result.satisfiesMinVersion ? 'yes' : 'no'}`,
+    )
+  }
+
+  lines.push(
+    `Suggested config:\n${result.suggestedConfig ? JSON.stringify(result.suggestedConfig, null, 2) : '(none)'}`,
+  )
+  lines.push(`Raw output:\n${result.output || '(no output)'}`)
+
+  return lines.join('\n\n')
+}
+
+async function toolsProbe(
+  tool: string,
+  options: ProbeToolOptions & {
+    json?: boolean
+  },
+): Promise<void> {
+  const { name, version } = getAppInfo()
+
+  if (!options.json) {
+    p.intro(`${name} ${version}`)
+  }
+
+  const result = await probeTool(tool, options)
+
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2))
+  } else {
+    p.note(formatProbeResult(tool, options, result), 'Tool probe')
+  }
+
+  if (result.status === 'missing') {
+    if (!options.json) {
+      p.outro(`Probe failed: \`${tool}\` is not installed`)
+    }
+    process.exit(1)
+  }
+
+  if (result.status === 'probe-failed') {
+    if (!options.json) {
+      p.outro(`Probe failed: \`${formatProbeCommand(tool, result.args)}\` exited unsuccessfully`)
+    }
+    process.exit(1)
+  }
+
+  if (result.status === 'unparseable') {
+    if (!options.json) {
+      p.outro(`Probe failed: could not extract a comparable version from \`${formatProbeCommand(tool, result.args)}\``)
+    }
+    process.exit(1)
+  }
+
+  if (options.minVersion && result.satisfiesMinVersion === false) {
+    if (!options.json) {
+      p.outro(`Probe complete: \`${tool}\` does not satisfy ${options.minVersion}`)
+    }
+    process.exit(1)
+  }
+
+  if (!options.json) {
+    p.outro('Done!')
+  }
+}
+
 export async function main(argv: string[]): Promise<void> {
   const args = getArgs(argv)
 
@@ -162,6 +252,16 @@ export async function main(argv: string[]): Promise<void> {
 
   if (args.command === 'registry-validate') {
     return registryValidate(args.registryDir)
+  }
+
+  if (args.command === 'tools-probe') {
+    return toolsProbe(args.probeTool ?? '', {
+      args: args.probeArgs,
+      json: args.probeJson,
+      minVersion: args.probeMinVersion,
+      presenceOnly: args.probePresenceOnly,
+      versionPattern: args.probeVersionPattern,
+    })
   }
 
   const { name, version } = getAppInfo()
@@ -248,6 +348,7 @@ export async function main(argv: string[]): Promise<void> {
         `Template:   ${template}`,
         `Target:     ${targetDir}`,
         `PM:         ${args.pm ?? 'auto-detect'}`,
+        `Allow missing tools: ${args.allowMissingTools}`,
         `Skip git:   ${args.skipGit}`,
         `Skip install: ${args.skipInstall}`,
       ].join('\n'),

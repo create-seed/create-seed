@@ -297,6 +297,24 @@ describe('validateRegistry', () => {
     expect(errors.some((e) => e.type === 'error' && e.message.includes('invalid create-seed.instructions'))).toBe(true)
   })
 
+  test('errors when package.json create-seed tools are invalid', () => {
+    createTemplate('mobile', {
+      'create-seed': {
+        tools: {
+          solana: '3.0',
+        },
+      },
+      name: 'mobile',
+    })
+    writeFileSync(
+      join(root, 'templates.json'),
+      JSON.stringify({ templates: [{ description: 'Mobile', id: 'gh:test/mobile', name: 'mobile', path: 'mobile' }] }),
+    )
+
+    const errors = validateRegistry(root)
+    expect(errors.some((e) => e.type === 'error' && e.message.includes('invalid create-seed.tools'))).toBe(true)
+  })
+
   test('warns when registry instructions are stale', () => {
     createTemplate('mobile', {
       'create-seed': {

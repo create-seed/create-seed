@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { isStringArray, parsePackageCreateSeedInstructions } from '../create-seed-config.ts'
+import {
+  INVALID_CREATE_SEED_TOOLS_MESSAGE,
+  isStringArray,
+  parsePackageCreateSeedInstructions,
+  parsePackageCreateSeedTools,
+} from '../create-seed-config.ts'
 import { readPackageJson } from '../package-json.ts'
 import { REGISTRY_FILENAME } from './constants.ts'
 import { generateReadme } from './readme.ts'
@@ -78,18 +83,25 @@ export function validateRegistry(root: string): ValidationError[] {
       const pkg = readPackageJson(join(dir, 'package.json'))
       if (pkg) {
         const actualInstructions = parsePackageCreateSeedInstructions(pkg)
+        const actualTools = parsePackageCreateSeedTools(pkg)
+
         if (!actualInstructions.valid) {
           errors.push({
             message: `Template "${template.name}" has invalid create-seed.instructions in package.json; expected an array of strings`,
             type: 'error',
           })
-        } else {
-          if (!instructionsMatch(template.instructions, actualInstructions.instructions)) {
-            errors.push({
-              message: `${REGISTRY_FILENAME} instructions for "${template.name}" are out of date — run \`create-seed registry generate\` to update`,
-              type: 'warning',
-            })
-          }
+        } else if (!instructionsMatch(template.instructions, actualInstructions.instructions)) {
+          errors.push({
+            message: `${REGISTRY_FILENAME} instructions for "${template.name}" are out of date — run \`create-seed registry generate\` to update`,
+            type: 'warning',
+          })
+        }
+
+        if (!actualTools.valid) {
+          errors.push({
+            message: `Template "${template.name}" has invalid create-seed.tools in package.json; ${INVALID_CREATE_SEED_TOOLS_MESSAGE}`,
+            type: 'error',
+          })
         }
       }
     }
