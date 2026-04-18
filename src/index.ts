@@ -11,6 +11,7 @@ import { isNoDna } from './lib/is-no-dna.ts'
 import { type ProbeToolOptions, probeTool } from './lib/probe-tool.ts'
 import { generateReadme, generateRegistry, validateRegistry, writeReadme, writeRegistry } from './lib/registry.ts'
 import { trackEvent } from './lib/telemetry.ts'
+import { validateTemplate } from './lib/validate-template.ts'
 
 export { getAppInfo }
 
@@ -100,7 +101,15 @@ async function registryGenerate(dir: string): Promise<void> {
   p.intro(`${name} ${version}`)
 
   const root = resolve(dir)
-  const registry = generateRegistry(root)
+  let registry: ReturnType<typeof generateRegistry>
+
+  try {
+    registry = generateRegistry(root)
+  } catch (error) {
+    p.log.error(error instanceof Error ? error.message : String(error))
+    p.outro('Generation failed')
+    process.exit(1)
+  }
 
   if (registry.templates.length === 0) {
     p.log.warn('No templates found. Make sure subdirectories contain a package.json.')
@@ -151,6 +160,34 @@ async function registryValidate(dir: string): Promise<void> {
   }
 
   p.log.success('templates.json is valid')
+  p.outro('All checks passed')
+}
+
+function formatTemplateConfig(config: unknown): string {
+  return config ? JSON.stringify(config, null, 2) : '(none)'
+}
+
+async function templateValidate(dir: string): Promise<void> {
+  const { name, version } = getAppInfo()
+  p.intro(`${name} ${version}`)
+
+  const result = validateTemplate(dir)
+
+  if (!result.valid) {
+    p.log.error(result.error ?? 'Template validation failed')
+    p.outro('Validation failed')
+    process.exit(1)
+  }
+
+  p.note(
+    [
+      `Directory: ${result.dir}`,
+      `Package: ${result.packageJsonPath}`,
+      `create-seed:\n${formatTemplateConfig(result.config)}`,
+    ].join('\n\n'),
+    'Template metadata',
+  )
+  p.log.success('Template create-seed metadata is valid')
   p.outro('All checks passed')
 }
 
@@ -252,6 +289,10 @@ export async function main(argv: string[]): Promise<void> {
 
   if (args.command === 'registry-validate') {
     return registryValidate(args.registryDir)
+  }
+
+  if (args.command === 'template-validate') {
+    return templateValidate(args.templateDir ?? '.')
   }
 
   if (args.command === 'tools-probe') {

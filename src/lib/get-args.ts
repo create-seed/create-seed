@@ -4,7 +4,7 @@ import { getTemplatesUrl } from './get-templates.ts'
 
 export interface Args {
   allowMissingTools: boolean
-  command: 'create' | 'registry-generate' | 'registry-validate' | 'tools-probe'
+  command: 'create' | 'registry-generate' | 'registry-validate' | 'template-validate' | 'tools-probe'
   dryRun: boolean
   list: boolean
   name: string | undefined
@@ -19,6 +19,7 @@ export interface Args {
   skipGit: boolean
   skipInstall: boolean
   template: string | undefined
+  templateDir?: string
   templatesUrl: string
   verbose: boolean
 }
@@ -35,15 +36,17 @@ export function getArgs(argv: string[]): Args {
 
   let result: Args | undefined
 
-  const defaults: Omit<Args, 'command' | 'registryDir'> = {
+  const defaults: Omit<Args, 'command'> = {
     allowMissingTools: false,
     dryRun: false,
     list: false,
     name: undefined,
     pm: undefined,
+    registryDir: '.',
     skipGit: false,
     skipInstall: false,
     template: undefined,
+    templateDir: '.',
     templatesUrl: getTemplatesUrl(),
     verbose: false,
   }
@@ -74,7 +77,6 @@ export function getArgs(argv: string[]): Args {
         list: opts.list,
         name: program.args[0],
         pm: opts.pm,
-        registryDir: '.',
         skipGit: opts.skipGit,
         skipInstall: opts.skipInstall,
         template: opts.template,
@@ -102,6 +104,16 @@ export function getArgs(argv: string[]): Args {
       result = { ...defaults, command: 'registry-validate', registryDir: opts.dir }
     })
 
+  const template = program.command('template').description('Manage local templates')
+
+  template
+    .command('validate')
+    .description('Validate create-seed metadata in a local template')
+    .option('--dir <dir>', 'Directory containing the template package.json', '.')
+    .action((opts) => {
+      result = { ...defaults, command: 'template-validate', templateDir: opts.dir }
+    })
+
   const tools = program.command('tools').description('Inspect tool versions used by template requirements')
 
   tools
@@ -122,14 +134,13 @@ export function getArgs(argv: string[]): Args {
         probePresenceOnly: opts.presenceOnly,
         probeTool: tool,
         probeVersionPattern: opts.pattern,
-        registryDir: '.',
       }
     })
 
   program.parse(argv)
 
   if (!result) {
-    result = { ...defaults, command: 'create', registryDir: '.' }
+    result = { ...defaults, command: 'create' }
   }
 
   return result

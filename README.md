@@ -41,6 +41,7 @@ Options:
 
 Commands:
   registry                     Manage template registries
+  template                     Manage local templates
   tools                        Inspect tool versions used by template requirements
 ```
 
@@ -149,6 +150,15 @@ Probe options:
 - `--presence-only` — only verify that the command exists and the probe succeeds
 
 The probe prints the raw output, every detected version-like token, the version `create-seed` would compare, whether the minimum passes, and a suggested `tools` config snippet.
+
+If you want to validate the full `create-seed` metadata for a local template before publishing or adding it to a registry, use:
+
+```bash
+create-seed template validate
+create-seed template validate --dir ./path/to/template
+```
+
+That validates the `create-seed` object in `package.json` and prints the normalized `instructions` and `tools` metadata that `create-seed` will use. Generated registries also carry that normalized `tools` metadata in `templates.json`.
 
 ## What it does
 

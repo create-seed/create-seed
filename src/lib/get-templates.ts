@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import type { CreateSeedToolRequirement } from './create-seed-config.ts'
 
 const DEFAULT_TEMPLATES_URL = 'https://raw.githubusercontent.com/create-seed/templates/main/templates.json'
 
@@ -8,6 +9,7 @@ export interface Template {
   id: string
   instructions?: string[]
   name: string
+  tools?: Record<string, CreateSeedToolRequirement>
 }
 
 export function getTemplatesUrl(): string {

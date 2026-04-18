@@ -1,8 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import {
+  type CreateSeedToolRequirement,
   INVALID_CREATE_SEED_TOOLS_MESSAGE,
   isStringArray,
+  parseCreateSeedTools,
   parsePackageCreateSeedInstructions,
   parsePackageCreateSeedTools,
 } from '../create-seed-config.ts'
@@ -26,6 +28,43 @@ function instructionsMatch(left: string[] | undefined, right: string[] | undefin
   }
 
   return left.every((value, index) => value === right[index])
+}
+
+function serializeTools(tools: Record<string, CreateSeedToolRequirement> | undefined): string {
+  if (!tools) {
+    return ''
+  }
+
+  return JSON.stringify(
+    Object.fromEntries(
+      Object.entries(tools).map(([name, requirement]) => [
+        name,
+        {
+          args: requirement.args,
+          command: requirement.command,
+          docsUrl: requirement.docsUrl,
+          installHint: requirement.installHint,
+          minVersion: requirement.minVersion,
+          versionPattern: requirement.versionPattern,
+        },
+      ]),
+    ),
+  )
+}
+
+function toolsMatch(
+  left: Record<string, CreateSeedToolRequirement> | undefined,
+  right: Record<string, CreateSeedToolRequirement> | undefined,
+): boolean {
+  if (!left && !right) {
+    return true
+  }
+
+  if (!left || !right) {
+    return false
+  }
+
+  return serializeTools(left) === serializeTools(right)
 }
 
 export function validateRegistry(root: string): ValidationError[] {
@@ -68,6 +107,13 @@ export function validateRegistry(root: string): ValidationError[] {
         type: 'error',
       })
     }
+    const registryTools = parseCreateSeedTools({ tools: template.tools })
+    if (!registryTools.valid) {
+      errors.push({
+        message: `Template "${template.name}" has invalid tools in ${REGISTRY_FILENAME}; ${INVALID_CREATE_SEED_TOOLS_MESSAGE}`,
+        type: 'error',
+      })
+    }
     if (!template.description) {
       errors.push({ message: `Template "${template.name}" missing description`, type: 'warning' })
     }
@@ -101,6 +147,11 @@ export function validateRegistry(root: string): ValidationError[] {
           errors.push({
             message: `Template "${template.name}" has invalid create-seed.tools in package.json; ${INVALID_CREATE_SEED_TOOLS_MESSAGE}`,
             type: 'error',
+          })
+        } else if (registryTools.valid && !toolsMatch(registryTools.tools, actualTools.tools)) {
+          errors.push({
+            message: `${REGISTRY_FILENAME} tools for "${template.name}" are out of date — run \`create-seed registry generate\` to update`,
+            type: 'warning',
           })
         }
       }

@@ -51,6 +51,17 @@ describe('parseCreateSeedTools', () => {
     })
   })
 
+  test('creates a null-prototype tools map when valid', () => {
+    const result = parseCreateSeedTools({
+      tools: {
+        solana: '3.0.0',
+      },
+    })
+
+    expect(result.valid).toBe(true)
+    expect(Object.getPrototypeOf(result.tools)).toBeNull()
+  })
+
   test('accepts missing tools', () => {
     expect(parseCreateSeedTools({})).toEqual({
       error: undefined,
@@ -73,6 +84,14 @@ describe('parseCreateSeedTools', () => {
     })
   })
 
+  test('rejects reserved object keys', () => {
+    expect(parseCreateSeedTools(JSON.parse('{"tools":{"__proto__":"3.0.0"}}'))).toEqual({
+      error: 'tools.__proto__: Tool names must not use reserved object keys',
+      tools: undefined,
+      valid: false,
+    })
+  })
+
   test('rejects invalid tool object fields', () => {
     expect(
       parseCreateSeedTools({
@@ -89,6 +108,23 @@ describe('parseCreateSeedTools', () => {
     })
   })
 
+  test('rejects unknown tool object fields', () => {
+    expect(
+      parseCreateSeedTools({
+        tools: {
+          solana: {
+            docsUrsl: 'https://docs.anza.xyz/cli/install',
+            minVerssion: '3.0.0',
+          },
+        },
+      }),
+    ).toEqual({
+      error: 'tools.solana: Unrecognized keys: "docsUrsl", "minVerssion"',
+      tools: undefined,
+      valid: false,
+    })
+  })
+
   test('rejects invalid regex patterns', () => {
     expect(
       parseCreateSeedTools({
@@ -100,6 +136,23 @@ describe('parseCreateSeedTools', () => {
         },
       }),
     ).toMatchObject({
+      tools: undefined,
+      valid: false,
+    })
+  })
+
+  test('rejects versionPattern without a capture group', () => {
+    expect(
+      parseCreateSeedTools({
+        tools: {
+          adb: {
+            minVersion: '37.0.0',
+            versionPattern: 'Version\\s+\\d+\\.\\d+\\.\\d+',
+          },
+        },
+      }),
+    ).toEqual({
+      error: 'tools.adb: versionPattern: versionPattern must contain a capture group',
       tools: undefined,
       valid: false,
     })

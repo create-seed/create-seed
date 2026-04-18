@@ -16,6 +16,7 @@ const ToolVersionPatternSchema = NonEmptyStringSchema.refine(
   isValidRegexPattern,
   'Expected a valid and safe regular expression',
 )
+const RESERVED_TOOL_NAMES = new Set(['__proto__', 'constructor', 'prototype'])
 
 export interface CreateSeedToolRequirement {
   args: string[]
@@ -58,11 +59,20 @@ const CreateSeedToolObjectSchema = z
     minVersion: ToolVersionSchema.optional(),
     versionPattern: ToolVersionPatternSchema.optional(),
   })
+  .strict()
   .superRefine((value, ctx) => {
     if (value.versionPattern && !value.minVersion) {
       ctx.addIssue({
         code: 'custom',
         message: 'versionPattern requires minVersion',
+        path: ['versionPattern'],
+      })
+    }
+
+    if (value.versionPattern && !hasRegexCaptureGroup(value.versionPattern)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'versionPattern must contain a capture group',
         path: ['versionPattern'],
       })
     }
@@ -76,17 +86,48 @@ const CreateSeedToolObjectSchema = z
     versionPattern: value.versionPattern,
   }))
 
-const CreateSeedToolValueSchema = z.union([
-  ToolVersionSchema.transform((minVersion) => ({
-    args: ['--version'],
-    command: undefined,
-    docsUrl: undefined,
-    installHint: undefined,
-    minVersion,
-    versionPattern: undefined,
-  })),
-  CreateSeedToolObjectSchema,
-])
+const CreateSeedToolValueSchema = z.unknown().transform((value, ctx) => {
+  if (typeof value === 'string') {
+    const result = ToolVersionSchema.safeParse(value)
+
+    if (!result.success) {
+      ctx.addIssue({
+        code: 'custom',
+        message: formatParseError(result.error, INVALID_CREATE_SEED_TOOLS_MESSAGE),
+      })
+      return z.NEVER
+    }
+
+    return {
+      args: ['--version'],
+      command: undefined,
+      docsUrl: undefined,
+      installHint: undefined,
+      minVersion: result.data,
+      versionPattern: undefined,
+    }
+  }
+
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const result = CreateSeedToolObjectSchema.safeParse(value)
+
+    if (!result.success) {
+      ctx.addIssue({
+        code: 'custom',
+        message: formatParseError(result.error, INVALID_CREATE_SEED_TOOLS_MESSAGE),
+      })
+      return z.NEVER
+    }
+
+    return result.data
+  }
+
+  ctx.addIssue({
+    code: 'custom',
+    message: INVALID_CREATE_SEED_TOOLS_MESSAGE,
+  })
+  return z.NEVER
+})
 
 const CreateSeedToolsSchema = z
   .record(z.string(), CreateSeedToolValueSchema)
@@ -99,10 +140,18 @@ const CreateSeedToolsSchema = z
           path: [key],
         })
       }
+
+      if (RESERVED_TOOL_NAMES.has(key)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Tool names must not use reserved object keys',
+          path: [key],
+        })
+      }
     }
   })
   .transform((tools): Record<string, CreateSeedToolRequirement> => {
-    const normalizedTools: Record<string, CreateSeedToolRequirement> = {}
+    const normalizedTools = Object.create(null) as Record<string, CreateSeedToolRequirement>
     const entries = Object.entries(tools).sort(([left], [right]) => left.localeCompare(right))
 
     for (const [tool, requirement] of entries) {
@@ -146,6 +195,26 @@ export function isValidRegexPattern(value: string): boolean {
   }
 }
 
+function hasRegexCaptureGroup(value: string): boolean {
+  try {
+    return (new RegExp(`(?:)|${value}`).exec('')?.length ?? 1) > 1
+  } catch {
+    return false
+  }
+}
+
+function hasReservedToolName(config: unknown): string | undefined {
+  if (!isRecordObject(config) || !isRecordObject(config.tools)) {
+    return undefined
+  }
+
+  return Object.keys(config.tools).find((key) => RESERVED_TOOL_NAMES.has(key))
+}
+
+function isRecordObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function formatParseError(error: z.ZodError, fallback: string): string {
   const issue = error.issues[0]
 
@@ -160,6 +229,16 @@ function formatParseError(error: z.ZodError, fallback: string): string {
 export function parseCreateSeedConfig(config: unknown): CreateSeedConfigResult {
   if (config === undefined) {
     return { config: undefined, error: undefined, valid: true }
+  }
+
+  const reservedToolName = hasReservedToolName(config)
+
+  if (reservedToolName) {
+    return {
+      config: undefined,
+      error: `tools.${reservedToolName}: Tool names must not use reserved object keys`,
+      valid: false,
+    }
   }
 
   const result = CreateSeedConfigSchema.safeParse(config)
@@ -212,6 +291,16 @@ export function parsePackageCreateSeedInstructions(pkg: Record<string, unknown>)
 export function parseCreateSeedTools(config: unknown): CreateSeedToolsParseResult {
   if (config === undefined) {
     return { error: undefined, tools: undefined, valid: true }
+  }
+
+  const reservedToolName = hasReservedToolName(config)
+
+  if (reservedToolName) {
+    return {
+      error: `tools.${reservedToolName}: Tool names must not use reserved object keys`,
+      tools: undefined,
+      valid: false,
+    }
   }
 
   const result = CreateSeedToolsConfigSchema.safeParse(config)

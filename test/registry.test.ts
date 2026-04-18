@@ -104,6 +104,31 @@ describe('scanTemplates', () => {
     const templates = scanTemplates(root)
     expect(templates[0]?.instructions).toEqual(['Use {pm} run ios', '+{pm} run android'])
   })
+
+  test('reads create-seed tools from package.json', () => {
+    createTemplate('mobile', {
+      'create-seed': {
+        tools: {
+          adb: {
+            minVersion: '37.0.0',
+          },
+        },
+      },
+      name: 'mobile',
+    })
+
+    const templates = scanTemplates(root)
+    expect(templates[0]?.tools).toEqual({
+      adb: {
+        args: ['--version'],
+        command: 'adb',
+        docsUrl: undefined,
+        installHint: undefined,
+        minVersion: '37.0.0',
+        versionPattern: undefined,
+      },
+    })
+  })
 })
 
 describe('generateRegistry', () => {
@@ -128,6 +153,46 @@ describe('generateRegistry', () => {
 
     const registry = generateRegistry(root)
     expect(registry.templates[0]?.instructions).toEqual(['Use {pm} run ios', '+{pm} run android'])
+  })
+
+  test('copies tools into generated registry metadata', () => {
+    createTemplate('mobile', {
+      'create-seed': {
+        tools: {
+          solana: '3.0.0',
+        },
+      },
+      name: 'mobile',
+    })
+
+    const registry = generateRegistry(root)
+    expect(registry.templates[0]?.tools).toEqual({
+      solana: {
+        args: ['--version'],
+        command: 'solana',
+        docsUrl: undefined,
+        installHint: undefined,
+        minVersion: '3.0.0',
+        versionPattern: undefined,
+      },
+    })
+  })
+
+  test('throws when create-seed tools are invalid', () => {
+    const pkgPath = join(root, 'mobile', 'package.json')
+
+    createTemplate('mobile', {
+      'create-seed': {
+        tools: {
+          solana: '3.0',
+        },
+      },
+      name: 'mobile',
+    })
+
+    expect(() => generateRegistry(root)).toThrow(
+      `Invalid create-seed.tools in template "mobile" (${pkgPath}); tools.solana: Expected a version like "1.2.3"`,
+    )
   })
 
   test('builds correct id from repository.name', () => {
@@ -315,6 +380,39 @@ describe('validateRegistry', () => {
     expect(errors.some((e) => e.type === 'error' && e.message.includes('invalid create-seed.tools'))).toBe(true)
   })
 
+  test('errors when registry tools are invalid without warning that valid package tools are stale', () => {
+    createTemplate('mobile', {
+      'create-seed': {
+        tools: {
+          solana: '3.0.0',
+        },
+      },
+      name: 'mobile',
+    })
+    writeFileSync(
+      join(root, 'templates.json'),
+      JSON.stringify({
+        templates: [
+          {
+            description: 'Mobile',
+            id: 'gh:test/mobile',
+            name: 'mobile',
+            path: 'mobile',
+            tools: {
+              solana: '3.0',
+            },
+          },
+        ],
+      }),
+    )
+
+    const errors = validateRegistry(root)
+    expect(errors.some((e) => e.type === 'error' && e.message.includes('invalid tools in templates.json'))).toBe(true)
+    expect(errors.some((e) => e.type === 'warning' && e.message.includes('tools for "mobile" are out of date'))).toBe(
+      false,
+    )
+  })
+
   test('warns when registry instructions are stale', () => {
     createTemplate('mobile', {
       'create-seed': {
@@ -341,6 +439,38 @@ describe('validateRegistry', () => {
     expect(
       errors.some((e) => e.type === 'warning' && e.message.includes('instructions for "mobile" are out of date')),
     ).toBe(true)
+  })
+
+  test('warns when registry tools are stale', () => {
+    createTemplate('mobile', {
+      'create-seed': {
+        tools: {
+          solana: '3.0.0',
+        },
+      },
+      name: 'mobile',
+    })
+    writeFileSync(
+      join(root, 'templates.json'),
+      JSON.stringify({
+        templates: [
+          {
+            description: 'Mobile',
+            id: 'gh:test/mobile',
+            name: 'mobile',
+            path: 'mobile',
+            tools: {
+              solana: '2.0.0',
+            },
+          },
+        ],
+      }),
+    )
+
+    const errors = validateRegistry(root)
+    expect(errors.some((e) => e.type === 'warning' && e.message.includes('tools for "mobile" are out of date'))).toBe(
+      true,
+    )
   })
 
   test('errors on orphaned templates', () => {

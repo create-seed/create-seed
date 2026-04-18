@@ -353,4 +353,64 @@ describe('main', () => {
     expect(message).toContain('Android Debug Bridge version 1.0.41')
     expect(message).toContain('Version 37.0.0-14910828')
   })
+
+  test('reports invalid template tools cleanly during registry generation', async () => {
+    const error = mock(() => {})
+    const exit = mock((code?: number) => {
+      throw new Error(`exit:${code ?? 0}`)
+    })
+    const outro = mock(() => {})
+
+    mock.module('@clack/prompts', () => ({
+      cancel: mock(() => {}),
+      confirm: mock(async () => false),
+      intro: mock(() => {}),
+      isCancel: () => false,
+      log: {
+        error,
+        message: mock(() => {}),
+        success: mock(() => {}),
+        warn: mock(() => {}),
+      },
+      note: mock(() => {}),
+      outro,
+      select: mock(async () => ''),
+      spinner: () => ({
+        start() {},
+        stop() {},
+      }),
+      text: mock(async () => ''),
+    }))
+
+    const originalExit = process.exit
+    const templateDir = join(tmpDir, 'template')
+
+    mkdirSync(templateDir, { recursive: true })
+    writeFileSync(
+      join(templateDir, 'package.json'),
+      JSON.stringify({
+        'create-seed': {
+          tools: {
+            solana: '3.0',
+          },
+        },
+        name: 'template',
+      }),
+    )
+
+    process.exit = exit as typeof process.exit
+
+    try {
+      const { main } = await import('../src/index.ts')
+
+      await expect(main(['bun', 'create-seed', 'registry', 'generate', '--dir', tmpDir])).rejects.toThrow('exit:1')
+    } finally {
+      process.exit = originalExit
+    }
+
+    expect(error).toHaveBeenCalledWith(
+      `Invalid create-seed.tools in template "template" (${join(templateDir, 'package.json')}); tools.solana: Expected a version like "1.2.3"`,
+    )
+    expect(outro).toHaveBeenCalledWith('Generation failed')
+  })
 })
