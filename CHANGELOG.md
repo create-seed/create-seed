@@ -1,5 +1,12 @@
 # create-seed
 
+## 1.7.0
+
+### Minor Changes
+
+- 3bca856: Add a `--fail-on-warning` option to `registry validate` so template registries can fail CI or git hooks when generated files are stale.
+- 8ce1ba5: Add a `template validate` command for checking local `create-seed` metadata, persist normalized template `tools` in generated registries, and surface clearer Zod errors for invalid tool definitions.
+
 ## 1.6.0
 
 ### Minor Changes
