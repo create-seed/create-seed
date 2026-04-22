@@ -129,7 +129,7 @@ async function registryGenerate(dir: string): Promise<void> {
   p.outro('Done!')
 }
 
-async function registryValidate(dir: string): Promise<void> {
+async function registryValidate(dir: string, options: { failOnWarning?: boolean } = {}): Promise<void> {
   const { name, version } = getAppInfo()
   p.intro(`${name} ${version}`)
 
@@ -149,7 +149,7 @@ async function registryValidate(dir: string): Promise<void> {
     }
   }
 
-  if (errorCount > 0) {
+  if (errorCount > 0 || (options.failOnWarning && warningCount > 0)) {
     p.outro(`Validation failed: ${errorCount} error(s), ${warningCount} warning(s)`)
     process.exit(1)
   }
@@ -288,7 +288,7 @@ export async function main(argv: string[]): Promise<void> {
   }
 
   if (args.command === 'registry-validate') {
-    return registryValidate(args.registryDir)
+    return registryValidate(args.registryDir, { failOnWarning: args.registryFailOnWarning })
   }
 
   if (args.command === 'template-validate') {

@@ -63,6 +63,42 @@ describe('main', () => {
     return templateDir
   }
 
+  function setupValidRegistry(): string {
+    const templateDir = join(tmpDir, 'template')
+
+    mkdirSync(templateDir, { recursive: true })
+    writeFileSync(
+      join(templateDir, 'package.json'),
+      JSON.stringify(
+        {
+          description: 'A template',
+          name: 'template',
+        },
+        null,
+        2,
+      ),
+    )
+    writeFileSync(
+      join(tmpDir, 'templates.json'),
+      JSON.stringify(
+        {
+          templates: [
+            {
+              description: 'A template',
+              id: 'gh:owner/templates/template',
+              name: 'template',
+              path: 'template',
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    )
+
+    return templateDir
+  }
+
   test('uses the cloned template lockfile for next steps', async () => {
     process.env.DO_NOT_TRACK = '1'
     process.env.npm_config_user_agent = 'npm/10.0.0'
@@ -412,5 +448,84 @@ describe('main', () => {
       `Invalid create-seed.tools in template "template" (${join(templateDir, 'package.json')}); tools.solana: Expected a version like "1.2.3"`,
     )
     expect(outro).toHaveBeenCalledWith('Generation failed')
+  })
+
+  test('registry validation keeps exit code 0 for warnings by default', async () => {
+    const outro = mock(() => {})
+    const warn = mock(() => {})
+
+    mock.module('@clack/prompts', () => ({
+      cancel: mock(() => {}),
+      confirm: mock(async () => false),
+      intro: mock(() => {}),
+      isCancel: () => false,
+      log: {
+        error: mock(() => {}),
+        message: mock(() => {}),
+        success: mock(() => {}),
+        warn,
+      },
+      note: mock(() => {}),
+      outro,
+      select: mock(async () => ''),
+      spinner: () => ({
+        start() {},
+        stop() {},
+      }),
+      text: mock(async () => ''),
+    }))
+
+    setupValidRegistry()
+
+    const { main } = await import('../src/index.ts')
+
+    await expect(main(['bun', 'create-seed', 'registry', 'validate', '--dir', tmpDir])).resolves.toBeUndefined()
+
+    expect(warn).toHaveBeenCalledWith('README.md not found — run `create-seed registry generate` to create')
+    expect(outro).toHaveBeenCalledWith('Validation passed with 1 warning(s)')
+  })
+
+  test('registry validation exits 1 for warnings with fail-on-warning', async () => {
+    const exit = mock((code?: number) => {
+      throw new Error(`exit:${code ?? 0}`)
+    })
+    const outro = mock(() => {})
+    const originalExit = process.exit
+
+    mock.module('@clack/prompts', () => ({
+      cancel: mock(() => {}),
+      confirm: mock(async () => false),
+      intro: mock(() => {}),
+      isCancel: () => false,
+      log: {
+        error: mock(() => {}),
+        message: mock(() => {}),
+        success: mock(() => {}),
+        warn: mock(() => {}),
+      },
+      note: mock(() => {}),
+      outro,
+      select: mock(async () => ''),
+      spinner: () => ({
+        start() {},
+        stop() {},
+      }),
+      text: mock(async () => ''),
+    }))
+
+    setupValidRegistry()
+    process.exit = exit as typeof process.exit
+
+    try {
+      const { main } = await import('../src/index.ts')
+
+      await expect(
+        main(['bun', 'create-seed', 'registry', 'validate', '--dir', tmpDir, '--fail-on-warning']),
+      ).rejects.toThrow('exit:1')
+    } finally {
+      process.exit = originalExit
+    }
+
+    expect(outro).toHaveBeenCalledWith('Validation failed: 0 error(s), 1 warning(s)')
   })
 })

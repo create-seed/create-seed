@@ -16,6 +16,7 @@ export interface Args {
   probeTool?: string
   probeVersionPattern?: string
   registryDir: string
+  registryFailOnWarning?: boolean
   skipGit: boolean
   skipInstall: boolean
   template: string | undefined
@@ -43,6 +44,7 @@ export function getArgs(argv: string[]): Args {
     name: undefined,
     pm: undefined,
     registryDir: '.',
+    registryFailOnWarning: false,
     skipGit: false,
     skipInstall: false,
     template: undefined,
@@ -100,8 +102,14 @@ export function getArgs(argv: string[]): Args {
     .command('validate')
     .description('Validate templates.json against actual templates')
     .option('--dir <dir>', 'Directory containing templates.json', '.')
+    .option('--fail-on-warning', 'Exit with code 1 when validation emits warnings', false)
     .action((opts) => {
-      result = { ...defaults, command: 'registry-validate', registryDir: opts.dir }
+      result = {
+        ...defaults,
+        command: 'registry-validate',
+        registryDir: opts.dir,
+        registryFailOnWarning: opts.failOnWarning,
+      }
     })
 
   const template = program.command('template').description('Manage local templates')
