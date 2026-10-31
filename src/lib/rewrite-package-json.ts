@@ -1,6 +1,6 @@
 import { access, readFile, writeFile } from 'node:fs/promises'
 import { basename, resolve } from 'node:path'
-import { CREATE_SEED_CONFIG_KEY, parsePackageCreateSeedInstructions } from './create-seed-config.ts'
+import { parsePackageCreateSeedInstructions, TEMPLATE_CONFIG_KEYS } from './create-seed-config.ts'
 
 export interface RewriteResult {
   instructions: string[] | undefined
@@ -29,7 +29,9 @@ export async function rewritePackageJson(targetDir: string, projectName: string)
   delete pkg.repository
   delete pkg.homepage
   delete pkg.bugs
-  delete pkg[CREATE_SEED_CONFIG_KEY]
+  for (const key of TEMPLATE_CONFIG_KEYS) {
+    delete pkg[key]
+  }
 
   // Reset description
   pkg.description = ''

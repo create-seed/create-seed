@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  getPackageCreateSeedConfigKey,
   INVALID_CREATE_SEED_TOOLS_MESSAGE,
   parsePackageCreateSeedInstructions,
   parsePackageCreateSeedTools,
@@ -33,8 +34,9 @@ function readTemplateInfo(dir: string, name: string, options: ScanTemplatesOptio
   const templateName = typeof pkg.name === 'string' && pkg.name.trim() ? pkg.name : name
 
   if (options.strictTools && !toolsResult.valid) {
+    const configKey = getPackageCreateSeedConfigKey(pkg)
     throw new Error(
-      `Invalid create-seed.tools in template "${templateName}" (${pkgPath}); ${toolsResult.error ?? INVALID_CREATE_SEED_TOOLS_MESSAGE}`,
+      `Invalid ${configKey}.tools in template "${templateName}" (${pkgPath}); ${toolsResult.error ?? INVALID_CREATE_SEED_TOOLS_MESSAGE}`,
     )
   }
 

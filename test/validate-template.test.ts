@@ -129,4 +129,58 @@ describe('validateTemplate', () => {
       valid: true,
     })
   })
+
+  test('returns normalized template metadata when valid', () => {
+    writeFileSync(
+      join(root, 'package.json'),
+      JSON.stringify({
+        name: 'template-app',
+        template: {
+          instructions: ['+bun run ios'],
+          tools: {
+            solana: '3.0.0',
+          },
+        },
+      }),
+    )
+
+    expect(validateTemplate(root)).toEqual({
+      config: {
+        instructions: ['+bun run ios'],
+        tools: {
+          solana: {
+            args: ['--version'],
+            command: 'solana',
+            docsUrl: undefined,
+            installHint: undefined,
+            minVersion: '3.0.0',
+            versionPattern: undefined,
+          },
+        },
+      },
+      dir: root,
+      error: undefined,
+      packageJsonPath: join(root, 'package.json'),
+      valid: true,
+    })
+  })
+
+  test('fails when template metadata is invalid', () => {
+    writeFileSync(
+      join(root, 'package.json'),
+      JSON.stringify({
+        name: 'template-app',
+        template: {
+          tools: {
+            solana: '3.0',
+          },
+        },
+      }),
+    )
+
+    expect(validateTemplate(root)).toMatchObject({
+      error: 'Invalid template in template package.json; tools.solana: Expected a version like "1.2.3"',
+      valid: false,
+    })
+  })
 })

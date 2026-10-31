@@ -80,4 +80,24 @@ describe('rewritePackageJson', () => {
     expect(result.instructions).toEqual(['Use {pm} run ios', '+{pm} run android'])
     expect(readPkg()['create-seed']).toBeUndefined()
   })
+
+  test('returns template instructions and removes both template and create-seed metadata', async () => {
+    setup({
+      'create-seed': {
+        instructions: ['Use {pm} run legacy'],
+      },
+      name: 'template-name',
+      template: {
+        instructions: ['Use {pm} run ios', '+{pm} run android'],
+      },
+      version: '1.0.0',
+    })
+
+    const result = await rewritePackageJson(tmpDir, 'my-app')
+    const pkg = readPkg()
+
+    expect(result.instructions).toEqual(['Use {pm} run ios', '+{pm} run android'])
+    expect(pkg.template).toBeUndefined()
+    expect(pkg['create-seed']).toBeUndefined()
+  })
 })

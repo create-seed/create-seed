@@ -129,6 +129,33 @@ describe('scanTemplates', () => {
       },
     })
   })
+
+  test('reads template instructions and tools from package.json', () => {
+    createTemplate('mobile', {
+      name: 'mobile',
+      template: {
+        instructions: ['Use {pm} run ios', '+{pm} run android'],
+        tools: {
+          adb: {
+            minVersion: '37.0.0',
+          },
+        },
+      },
+    })
+
+    const templates = scanTemplates(root)
+    expect(templates[0]?.instructions).toEqual(['Use {pm} run ios', '+{pm} run android'])
+    expect(templates[0]?.tools).toEqual({
+      adb: {
+        args: ['--version'],
+        command: 'adb',
+        docsUrl: undefined,
+        installHint: undefined,
+        minVersion: '37.0.0',
+        versionPattern: undefined,
+      },
+    })
+  })
 })
 
 describe('generateRegistry', () => {
@@ -192,6 +219,23 @@ describe('generateRegistry', () => {
 
     expect(() => generateRegistry(root)).toThrow(
       `Invalid create-seed.tools in template "mobile" (${pkgPath}); tools.solana: Expected a version like "1.2.3"`,
+    )
+  })
+
+  test('throws when template tools are invalid', () => {
+    const pkgPath = join(root, 'mobile', 'package.json')
+
+    createTemplate('mobile', {
+      name: 'mobile',
+      template: {
+        tools: {
+          solana: '3.0',
+        },
+      },
+    })
+
+    expect(() => generateRegistry(root)).toThrow(
+      `Invalid template.tools in template "mobile" (${pkgPath}); tools.solana: Expected a version like "1.2.3"`,
     )
   })
 
@@ -378,6 +422,26 @@ describe('validateRegistry', () => {
 
     const errors = validateRegistry(root)
     expect(errors.some((e) => e.type === 'error' && e.message.includes('invalid create-seed.tools'))).toBe(true)
+  })
+
+  test('errors when package.json template instructions or tools are invalid', () => {
+    createTemplate('mobile', {
+      name: 'mobile',
+      template: {
+        instructions: [1, 'ok'],
+        tools: {
+          solana: '3.0',
+        },
+      },
+    })
+    writeFileSync(
+      join(root, 'templates.json'),
+      JSON.stringify({ templates: [{ description: 'Mobile', id: 'gh:test/mobile', name: 'mobile', path: 'mobile' }] }),
+    )
+
+    const errors = validateRegistry(root)
+    expect(errors.some((e) => e.type === 'error' && e.message.includes('invalid template.instructions'))).toBe(true)
+    expect(errors.some((e) => e.type === 'error' && e.message.includes('invalid template.tools'))).toBe(true)
   })
 
   test('errors when registry tools are invalid without warning that valid package tools are stale', () => {

@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import {
   type CreateSeedConfig,
+  getPackageCreateSeedConfigKey,
   INVALID_CREATE_SEED_CONFIG_MESSAGE,
   parsePackageCreateSeedConfig,
   parsePackageCreateSeedInstructions,
@@ -46,6 +47,7 @@ export function validateTemplate(dir: string): TemplateValidationResult {
   const result = parsePackageCreateSeedConfig(pkg)
 
   if (!result.valid) {
+    const configKey = getPackageCreateSeedConfigKey(pkg)
     const instructions = parsePackageCreateSeedInstructions(pkg)
     const tools = parsePackageCreateSeedTools(pkg)
     const detailedError = instructions.error ?? tools.error ?? result.error ?? INVALID_CREATE_SEED_CONFIG_MESSAGE
@@ -53,7 +55,7 @@ export function validateTemplate(dir: string): TemplateValidationResult {
     return {
       config: undefined,
       dir: root,
-      error: `Invalid create-seed in template package.json; ${detailedError}`,
+      error: `Invalid ${configKey} in template package.json; ${detailedError}`,
       packageJsonPath,
       valid: false,
     }

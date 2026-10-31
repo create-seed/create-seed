@@ -1,10 +1,13 @@
 import safeRegex from 'safe-regex'
 import { z } from 'zod'
 
+export const TEMPLATE_CONFIG_KEY = 'template'
 export const CREATE_SEED_CONFIG_KEY = 'create-seed'
+export const TEMPLATE_CONFIG_KEYS = [TEMPLATE_CONFIG_KEY, CREATE_SEED_CONFIG_KEY] as const
+export type TemplateConfigKey = (typeof TEMPLATE_CONFIG_KEYS)[number]
 export const CREATE_SEED_TOOLS_VERSION_PATTERN = /^\d+\.\d+\.\d+$/
 export const INVALID_CREATE_SEED_CONFIG_MESSAGE =
-  'expected a create-seed object with optional instructions and tools fields'
+  'expected a template object with optional instructions and tools fields'
 export const INVALID_CREATE_SEED_TOOLS_MESSAGE =
   'expected each tool to be either a version like "1.2.3" or an object with optional command, args, minVersion, versionPattern, installHint, and docsUrl fields'
 
@@ -258,8 +261,22 @@ export function parseCreateSeedConfig(config: unknown): CreateSeedConfigResult {
   }
 }
 
+export function getPackageCreateSeedConfigKey(pkg: Record<string, unknown>): TemplateConfigKey {
+  if (pkg[TEMPLATE_CONFIG_KEY] !== undefined) {
+    return TEMPLATE_CONFIG_KEY
+  }
+  if (pkg[CREATE_SEED_CONFIG_KEY] !== undefined) {
+    return CREATE_SEED_CONFIG_KEY
+  }
+  return TEMPLATE_CONFIG_KEY
+}
+
+export function getPackageCreateSeedConfigValue(pkg: Record<string, unknown>): unknown {
+  return pkg[TEMPLATE_CONFIG_KEY] !== undefined ? pkg[TEMPLATE_CONFIG_KEY] : pkg[CREATE_SEED_CONFIG_KEY]
+}
+
 export function parsePackageCreateSeedConfig(pkg: Record<string, unknown>): CreateSeedConfigResult {
-  return parseCreateSeedConfig(pkg[CREATE_SEED_CONFIG_KEY])
+  return parseCreateSeedConfig(getPackageCreateSeedConfigValue(pkg))
 }
 
 export function parseCreateSeedInstructions(config: unknown): CreateSeedConfigParseResult {
@@ -285,7 +302,7 @@ export function parseCreateSeedInstructions(config: unknown): CreateSeedConfigPa
 }
 
 export function parsePackageCreateSeedInstructions(pkg: Record<string, unknown>): CreateSeedConfigParseResult {
-  return parseCreateSeedInstructions(pkg[CREATE_SEED_CONFIG_KEY])
+  return parseCreateSeedInstructions(getPackageCreateSeedConfigValue(pkg))
 }
 
 export function parseCreateSeedTools(config: unknown): CreateSeedToolsParseResult {
@@ -321,5 +338,5 @@ export function parseCreateSeedTools(config: unknown): CreateSeedToolsParseResul
 }
 
 export function parsePackageCreateSeedTools(pkg: Record<string, unknown>): CreateSeedToolsParseResult {
-  return parseCreateSeedTools(pkg[CREATE_SEED_CONFIG_KEY])
+  return parseCreateSeedTools(getPackageCreateSeedConfigValue(pkg))
 }
