@@ -29,7 +29,7 @@ Options:
   -V, --version                output the version number
   -t, --template <template>    Template to use (gh:owner/repo/path, https://github.com/owner/repo/tree/ref/path, or local path)
   --pm <pm>                    Package manager (npm|pnpm|bun, default: auto-detect)
-  --allow-missing-tools        Continue when create-seed.tools commands are not installed (default: false)
+  --allow-missing-tools        Continue when template.tools commands are not installed (default: false)
   --skip-git                   Skip git initialization (default: false)
   --skip-install               Skip installing dependencies (default: false)
   -l, --list                   List available templates (default: false)
@@ -79,18 +79,18 @@ bun x create-seed@latest my-app -t ./my-local-template
 
 GitHub tree URLs treat the first segment after `/tree/` as the ref. If your branch or tag name contains `/`, use `gh:owner/repo/path#ref/with/slash` instead.
 
-Template authors can add `create-seed.instructions` in `package.json` to customize the final note:
+Template authors can add `template.instructions` in `package.json` to customize the final note (the deprecated `create-seed` key is still supported):
 
 - Prefix a line with `+` to render it in bold
 - Use a standalone `~` line to insert an empty line
 
-Templates can also declare external CLI requirements with `create-seed.tools`.
+Templates can also declare external CLI requirements with `template.tools`.
 
 String values are shorthand for "this command must exist and report at least this version":
 
 ```json
 {
-  "create-seed": {
+  "template": {
     "tools": {
       "solana": "3.0.0"
     }
@@ -102,7 +102,7 @@ If you need more control, each tool can also use an object:
 
 ```json
 {
-  "create-seed": {
+  "template": {
     "tools": {
       "adb": {
         "args": ["version"],
@@ -151,19 +151,19 @@ Probe options:
 
 The probe prints the raw output, every detected version-like token, the version `create-seed` would compare, whether the minimum passes, and a suggested `tools` config snippet.
 
-If you want to validate the full `create-seed` metadata for a local template before publishing or adding it to a registry, use:
+If you want to validate the full `template` metadata for a local template before publishing or adding it to a registry, use:
 
 ```bash
 create-seed template validate
 create-seed template validate --dir ./path/to/template
 ```
 
-That validates the `create-seed` object in `package.json` and prints the normalized `instructions` and `tools` metadata that `create-seed` will use. Generated registries also carry that normalized `tools` metadata in `templates.json`.
+That validates the `template` object (or deprecated `create-seed` object) in `package.json` and prints the normalized `instructions` and `tools` metadata that `create-seed` will use. Generated registries also carry that normalized `tools` metadata in `templates.json`.
 
 ## What it does
 
 1. **Clones the template** — downloads from GitHub (via [giget](https://github.com/unjs/giget)) or copies from a local path
-2. **Checks required tools** — validates any `create-seed.tools` requirements from the template before making further changes
+2. **Checks required tools** — validates any `template.tools` requirements from the template before making further changes
 3. **Configures the package** — rewrites `package.json` and renames in-template references to your new app name
 4. **Initializes git** — runs `git init` before install so prepare scripts can see the repo (skips gracefully if git is not installed)
 5. **Installs dependencies** — auto-detects your package manager (bun/npm/pnpm)

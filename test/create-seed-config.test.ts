@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { parseCreateSeedTools } from '../src/lib/create-seed-config.ts'
+import {
+  getPackageCreateSeedConfigKey,
+  parseCreateSeedTools,
+  parsePackageCreateSeedConfig,
+  parsePackageCreateSeedInstructions,
+  parsePackageCreateSeedTools,
+} from '../src/lib/create-seed-config.ts'
 
 describe('parseCreateSeedTools', () => {
   test('returns normalized and sorted tool requirements when valid', () => {
@@ -186,6 +192,73 @@ describe('parseCreateSeedTools', () => {
     ).toMatchObject({
       tools: undefined,
       valid: false,
+    })
+  })
+})
+
+describe('package template config resolution', () => {
+  test('reads config from the template key', () => {
+    const pkg = {
+      template: {
+        instructions: ['+bun run dev'],
+        tools: {
+          solana: '3.0.0',
+        },
+      },
+    }
+
+    expect(getPackageCreateSeedConfigKey(pkg)).toBe('template')
+    expect(parsePackageCreateSeedInstructions(pkg)).toEqual({
+      error: undefined,
+      instructions: ['+bun run dev'],
+      valid: true,
+    })
+    expect(parsePackageCreateSeedTools(pkg)).toMatchObject({
+      error: undefined,
+      tools: {
+        solana: {
+          args: ['--version'],
+          command: 'solana',
+          minVersion: '3.0.0',
+        },
+      },
+      valid: true,
+    })
+  })
+
+  test('falls back to the deprecated create-seed key', () => {
+    const pkg = {
+      'create-seed': {
+        instructions: ['+bun run dev'],
+      },
+    }
+
+    expect(getPackageCreateSeedConfigKey(pkg)).toBe('create-seed')
+    expect(parsePackageCreateSeedConfig(pkg)).toEqual({
+      config: {
+        instructions: ['+bun run dev'],
+        tools: undefined,
+      },
+      error: undefined,
+      valid: true,
+    })
+  })
+
+  test('prefers template over create-seed when both keys exist', () => {
+    const pkg = {
+      'create-seed': {
+        instructions: ['+bun run legacy'],
+      },
+      template: {
+        instructions: ['+bun run modern'],
+      },
+    }
+
+    expect(getPackageCreateSeedConfigKey(pkg)).toBe('template')
+    expect(parsePackageCreateSeedInstructions(pkg)).toEqual({
+      error: undefined,
+      instructions: ['+bun run modern'],
+      valid: true,
     })
   })
 })

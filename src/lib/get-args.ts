@@ -63,7 +63,7 @@ export function getArgs(argv: string[]): Args {
       'Template to use (gh:owner/repo/path, https://github.com/owner/repo/tree/ref/path, or local path)',
     )
     .option('--pm <pm>', 'Package manager (npm|pnpm|bun, default: auto-detect)')
-    .option('--allow-missing-tools', 'Continue when create-seed.tools commands are not installed', false)
+    .option('--allow-missing-tools', 'Continue when template.tools commands are not installed', false)
     .option('--skip-git', 'Skip git initialization', false)
     .option('--skip-install', 'Skip installing dependencies', false)
     .option('-l, --list', 'List available templates', false)
@@ -116,7 +116,7 @@ export function getArgs(argv: string[]): Args {
 
   template
     .command('validate')
-    .description('Validate create-seed metadata in a local template')
+    .description('Validate template metadata in a local template')
     .option('--dir <dir>', 'Directory containing the template package.json', '.')
     .action((opts) => {
       result = { ...defaults, command: 'template-validate', templateDir: opts.dir }
@@ -126,7 +126,7 @@ export function getArgs(argv: string[]): Args {
 
   tools
     .command('probe <tool>')
-    .description('Probe a tool command the same way create-seed.tools does')
+    .description('Probe a tool command the same way template.tools does')
     .option('--arg <value>', 'Add an argument to the probe command (repeatable)', collectOption, [])
     .option('--json', 'Output the probe result as JSON', false)
     .option('--min <version>', 'Check whether the extracted version satisfies a minimum like 1.2.3')

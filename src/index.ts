@@ -183,11 +183,11 @@ async function templateValidate(dir: string): Promise<void> {
     [
       `Directory: ${result.dir}`,
       `Package: ${result.packageJsonPath}`,
-      `create-seed:\n${formatTemplateConfig(result.config)}`,
+      `template:\n${formatTemplateConfig(result.config)}`,
     ].join('\n\n'),
     'Template metadata',
   )
-  p.log.success('Template create-seed metadata is valid')
+  p.log.success('Template metadata is valid')
   p.outro('All checks passed')
 }
 

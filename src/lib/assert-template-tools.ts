@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import {
   CREATE_SEED_TOOLS_VERSION_PATTERN,
   type CreateSeedToolRequirement,
+  getPackageCreateSeedConfigKey,
   INVALID_CREATE_SEED_TOOLS_MESSAGE,
   parsePackageCreateSeedTools,
 } from './create-seed-config.ts'
@@ -117,8 +118,9 @@ function formatToolFailure(failure: ToolRequirementFailure): string {
 function getValidToolRequirements(pkg: Record<string, unknown>): Record<string, CreateSeedToolRequirement> | undefined {
   const result = parsePackageCreateSeedTools(pkg)
   if (!result.valid) {
+    const configKey = getPackageCreateSeedConfigKey(pkg)
     throw new Error(
-      `Invalid create-seed.tools in template package.json; ${result.error ?? INVALID_CREATE_SEED_TOOLS_MESSAGE}`,
+      `Invalid ${configKey}.tools in template package.json; ${result.error ?? INVALID_CREATE_SEED_TOOLS_MESSAGE}`,
     )
   }
   return result.tools

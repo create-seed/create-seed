@@ -145,6 +145,35 @@ describe('assertTemplateTools', () => {
     await expect(assertTemplateTools(targetDir)).rejects.toThrow('Invalid create-seed.tools in template package.json;')
   })
 
+  test('reads and validates tool requirements from the template key', async () => {
+    const validTargetDir = createTemplate({
+      template: {
+        tools: {
+          solana: '3.0.0',
+        },
+      },
+    })
+
+    await expect(
+      assertTemplateTools(validTargetDir, {
+        probe: async () => ({ ok: true, output: 'solana-cli 3.1.13' }),
+      }),
+    ).resolves.toEqual({ ignoredMissingTools: [] })
+    rmSync(validTargetDir, { force: true, recursive: true })
+
+    const invalidTargetDir = createTemplate({
+      template: {
+        tools: {
+          solana: '3.0',
+        },
+      },
+    })
+
+    await expect(assertTemplateTools(invalidTargetDir)).rejects.toThrow(
+      'Invalid template.tools in template package.json;',
+    )
+  })
+
   test('throws when a required command is missing', async () => {
     const targetDir = createTemplate({
       'create-seed': {
